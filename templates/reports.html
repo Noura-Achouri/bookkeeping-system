@@ -1,316 +1,408 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transaction Reports | Bookkeeping System</title>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12/dist/gsap.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Roboto, monospace;
-        }
+{% extends 'base.html' %}
+{% load lang_tags %}
 
-        :root {
-            --primary-blue: #00A4E6;
-            --primary-purple: #c944ff;
-            --accent-red: #ff2b4f;
-            --dark-bg: #121420;
-            --card-bg: rgba(20, 22, 36, 0.65);
-            --input-bg: rgba(25, 28, 45, 0.7);
-            --text-white: #ffffff;
-            --text-gray: #b0c4de;
-        }
+{% block title %}{% lang_text "financial_reports" %} | BookKeeper{% endblock %}
 
-        body {
-            overflow-x: hidden;
-            min-height: 100vh;
-            background: var(--dark-bg);
-            padding: 0;
-            color: var(--text-white);
-            perspective: 1200px;
-        }
+{% block page_header %}
+<h1>{% lang_text "financial_reports" %}</h1>
+<p>{% lang_text "reports_subtitle" %}</p>
+{% endblock %}
 
-        #bg-canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: -3;
-            pointer-events: none;
-        }
-        .grid-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-image: linear-gradient(rgba(0, 164, 230, 0.06) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(201, 68, 255, 0.06) 1px, transparent 1px);
-            background-size: 45px 45px;
-            z-index: -2;
-            pointer-events: none;
-        }
+{% block extra_css %}
+<style>
+    .rep-page { display: flex; flex-direction: column; gap: 24px; }
+    .range-tabs {
+        display: inline-flex; gap: 4px; padding: 4px; flex-wrap: wrap;
+        background: var(--surface-elevated); border: 1px solid var(--border);
+        border-radius: var(--radius-pill);
+    }
+    .range-tab {
+        padding: 9px 16px; border-radius: var(--radius-pill);
+        font-size: 0.83rem; font-weight: 700; color: var(--text-muted);
+        transition: var(--transition); white-space: nowrap;
+    }
+    .range-tab:hover { color: var(--text); }
+    .range-tab.active { background: var(--primary); color: #00120a; box-shadow: 0 0 18px var(--primary-glow); }
+    [data-theme="light"] .range-tab.active { color: #fff; }
+    .rep-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .rep-range-label { font-size: 0.82rem; color: var(--text-dim); margin-top: 10px; }
+    .custom-range { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-top: 16px; }
+    .rep-2col { display: grid; grid-template-columns: 1.15fr 1fr; gap: 24px; }
+    .kpi-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 18px; }
+    .kpi-strip .cat-tile strong { font-size: 1.15rem; }
+    .cat-legend { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
+    .cat-legend-row { display: flex; align-items: center; gap: 10px; font-size: 0.86rem; }
+    .cat-legend-row .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cat-legend-row .val { font-weight: 800; font-variant-numeric: tabular-nums; }
+    .cat-legend-row .pct { color: var(--text-dim); font-size: 0.78rem; width: 46px; text-align: right; }
+    .savings-head { display: flex; align-items: baseline; gap: 10px; }
+    .savings-head .big { font-size: 2rem; font-weight: 800; letter-spacing: -0.6px; color: var(--primary); }
+    .delta { font-size: 0.76rem; font-weight: 800; }
+    @media (max-width: 1000px) { .rep-2col { grid-template-columns: 1fr; } }
 
-        @keyframes sweepGlow {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-        }
-        @keyframes pulseGlow {
-            0%,100% { box-shadow: 0 0 15px rgba(0,164,230,0.3); }
-            50% { box-shadow: 0 0 30px var(--primary-blue), 0 0 45px rgba(201, 68, 255,0.4); }
-        }
-        @keyframes floatUp {
-            0%,100% { transform: translateY(0px) rotate3d(0,0,0,0deg); }
-            50% { transform: translateY(-6px) rotate3d(0.2,0.15,0,1deg); }
-        }
-        @keyframes textGlow {
-            0%, 100% {
-                text-shadow: 0 15px 25px rgba(0, 164, 230, 0.55);
-            }
-            50% {
-                text-shadow: 0 18px 35px rgba(0, 164, 230, 0.7);
-            }
-        }
+    @media print {
+        .sidebar, .mobile-nav, .sidebar-backdrop, .topbar-actions, .mobile-topbar-btn,
+        .toast-wrap, #bg-canvas, .bg-orbs, .rep-toolbar { display: none !important; }
+        body, .main { background: #fff !important; padding: 0 !important; }
+        .card, .stat-card { box-shadow: none !important; border: 1px solid #ddd !important; break-inside: avoid; }
+        .main > * { animation: none !important; }
+        * { color: #111 !important; }
+    }
+</style>
+{% endblock %}
 
-        .main-nav {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            backdrop-filter: blur(14px);
-            background: rgba(20,22,36,0.6);
-            border-bottom: 1px solid rgba(0,164,230,0.3);
-            padding: 20px 40px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            overflow: visible;
-        }
-        .page-title {
-            font-size: 3rem;
-            color: var(--primary-blue);
-            animation: textGlow 4s infinite ease-in-out;
-            letter-spacing: 2px;
-            font-weight: 900;
-            overflow: visible;
-        }
-        .nav-actions {
-            display: flex;
-            gap: 20px;
-            align-items: center;
-        }
+{% block content %}
+{% lang_text 'uncategorized' as unc %}
+<div class="rep-page">
 
-        .dashboard-wrapper {
-            position: relative;
-            z-index: 1;
-            max-width: 1250px;
-            margin: 50px auto;
-            padding: 0 30px;
-        }
+    <!-- Toolbar: period + export -->
+    <div class="card reveal">
+        <div class="rep-toolbar">
+            <div>
+                <span class="field-label" style="margin-bottom:10px;">{% lang_text 'period' %}</span>
+                <div class="range-tabs">
+                    <a href="?range=week" class="range-tab {% if range_key == 'week' %}active{% endif %}">{% lang_text 'this_week' %}</a>
+                    <a href="?range=month" class="range-tab {% if range_key == 'month' %}active{% endif %}">{% lang_text 'this_month' %}</a>
+                    <a href="?range=quarter" class="range-tab {% if range_key == 'quarter' %}active{% endif %}">{% lang_text 'last_3_months' %}</a>
+                    <a href="?range=year" class="range-tab {% if range_key == 'year' %}active{% endif %}">{% lang_text 'this_year' %}</a>
+                    <a href="?range=custom{% if range_key == 'custom' %}&start_date={{ filters.start_date }}&end_date={{ filters.end_date }}{% endif %}" class="range-tab {% if range_key == 'custom' %}active{% endif %}">{% lang_text 'custom_range' %}</a>
+                </div>
+                <div class="rep-range-label">
+                    {{ start_date|date:"M d, Y" }} → {{ end_date|date:"M d, Y" }}
+                </div>
+            </div>
 
-        .records-panel {
-            background: var(--card-bg);
-            backdrop-filter: blur(14px);
-            border: 1px solid rgba(0,164,230,0.35);
-            border-radius: 18px;
-            padding: 40px;
-            margin-bottom: 30px;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0,164,230,0.25);
-            animation: floatUp 6s infinite ease-in-out;
-        }
-        .records-panel::after {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(201, 68, 255,0.08), transparent);
-            animation: sweepGlow 5s infinite linear;
-            pointer-events: none;
-        }
-
-        .cyber-btn {
-            position: relative;
-            display: inline-block;
-            padding: 15px 30px;
-            background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple));
-            color: #fff;
-            text-decoration: none;
-            font-weight: 700;
-            font-size: 1.05rem;
-            border-radius: 10px;
-            border: none;
-            overflow: hidden;
-            transition: all 0.35s ease;
-            cursor: pointer;
-            transform-style: preserve-3d;
-        }
-        .cyber-btn::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
-            animation: sweepGlow 3.2s infinite linear;
-        }
-        .cyber-btn:hover {
-            transform: translateY(-4px) scale(1.03) translate3d(0,0,12px);
-            animation: pulseGlow 1.8s infinite ease-in-out;
-            mix-blend-mode: screen;
-        }
-        .cyber-btn:active {
-            transform: translateY(1px) scale(0.98);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            padding: 16px;
-            border-bottom: 1px solid rgba(0,164,230,0.2);
-            text-align: left;
-        }
-        th {
-            color: var(--primary-blue);
-        }
-
-        .float-logout {
-            position: fixed;
-            bottom: 35px;
-            right: 35px;
-            z-index: 9;
-        }
-        .logout-btn {
-            background: linear-gradient(135deg, #770099, var(--accent-red));
-        }
-    </style>
-</head>
-<body>
-    <canvas id="bg-canvas"></canvas>
-    <div class="grid-overlay"></div>
-
-    <nav class="main-nav">
-        <h1 class="page-title">FINANCIAL REPORTS</h1>
-        <div class="nav-actions">
-            <a href="{% url 'dashboard' %}" class="cyber-btn">← Back to Dashboard</a>
+            <div class="btn-group">
+                <a href="{% url 'export_report' %}?range={{ range_key }}&start_date={{ filters.start_date }}&end_date={{ filters.end_date }}" class="btn btn-outline">
+                    ⬇ {% lang_text 'export_csv' %}
+                </a>
+                <button type="button" class="btn btn-ghost" onclick="window.print()">
+                    ⎙ {% lang_text 'export_pdf' %}
+                </button>
+            </div>
         </div>
-    </nav>
 
-    <div class="dashboard-wrapper">
-        <div class="records-panel">
-            <h3>Monthly Income & Expense Report</h3>
-            <!-- You put your report content, tables, charts here -->
-            <table>
-                <tr>
-                    <th>Month</th>
-                    <th>Total Income</th>
-                    <th>Total Expense</th>
-                    <th>Net Balance</th>
-                </tr>
-                <tr>
-                    <td>June</td>
-                    <td style="color:#00A4E6">5000</td>
-                    <td style="color:#c944ff">2200</td>
-                    <td>2800</td>
-                </tr>
-            </table>
+        {% if range_key == 'custom' %}
+        <form method="GET" action="{% url 'reports' %}" class="custom-range">
+            <input type="hidden" name="range" value="custom">
+            <div class="field" style="margin-bottom:0;">
+                <label for="rep-start">{% lang_text 'date_from' %}</label>
+                <input type="date" name="start_date" id="rep-start" value="{{ filters.start_date }}">
+            </div>
+            <div class="field" style="margin-bottom:0;">
+                <label for="rep-end">{% lang_text 'date_to' %}</label>
+                <input type="date" name="end_date" id="rep-end" value="{{ filters.end_date }}">
+            </div>
+            <button type="submit" class="btn btn-primary">{% lang_text 'apply' %}</button>
+        </form>
+        {% endif %}
+    </div>
+
+    {% if has_data %}
+    <!-- Headline numbers -->
+    <div class="stat-grid">
+        <div class="stat-card reveal">
+            <div class="stat-head">
+                <span class="stat-label">{% lang_text 'total_income' %}</span>
+                <span class="stat-icon">↓</span>
+            </div>
+            <div class="stat-value income" data-countup="{{ income|floatformat:'2u' }}" data-prefix="{{ currency_symbol }}">{{ currency_symbol }}0.00</div>
+            <div class="stat-foot">
+                {% if income_delta is not None %}
+                    <span class="delta {% if income_delta >= 0 %}text-income{% else %}text-expense{% endif %}">{% if income_delta >= 0 %}▲{% else %}▼{% endif %} {{ income_delta }}%</span>
+                    {% lang_text 'vs_previous' %}
+                {% else %}{% lang_text 'no_previous_data' %}{% endif %}
+            </div>
+        </div>
+
+        <div class="stat-card reveal" data-delay="60">
+            <div class="stat-head">
+                <span class="stat-label">{% lang_text 'total_expense' %}</span>
+                <span class="stat-icon danger">↑</span>
+            </div>
+            <div class="stat-value expense" data-countup="{{ expense|floatformat:'2u' }}" data-prefix="{{ currency_symbol }}">{{ currency_symbol }}0.00</div>
+            <div class="stat-foot">
+                {% if expense_delta is not None %}
+                    <span class="delta {% if expense_delta <= 0 %}text-income{% else %}text-expense{% endif %}">{% if expense_delta >= 0 %}▲{% else %}▼{% endif %} {{ expense_delta }}%</span>
+                    {% lang_text 'vs_previous' %}
+                {% else %}{% lang_text 'no_previous_data' %}{% endif %}
+            </div>
+        </div>
+
+        <div class="stat-card reveal" data-delay="120">
+            <div class="stat-head">
+                <span class="stat-label">{% lang_text 'net_savings' %}</span>
+                <span class="stat-icon">◈</span>
+            </div>
+            <div class="stat-value {% if net >= 0 %}income{% else %}expense{% endif %}" data-countup="{{ net|floatformat:'2u' }}" data-prefix="{{ currency_symbol }}">{{ currency_symbol }}0.00</div>
+            <div class="stat-foot">
+                {% if net_delta is not None %}
+                    <span class="delta {% if net_delta >= 0 %}text-income{% else %}text-expense{% endif %}">{% if net_delta >= 0 %}▲{% else %}▼{% endif %} {{ net_delta }}%</span>
+                    {% lang_text 'vs_previous' %}
+                {% else %}{% lang_text 'no_previous_data' %}{% endif %}
+            </div>
+        </div>
+
+        <div class="stat-card reveal" data-delay="180">
+            <div class="stat-head">
+                <span class="stat-label">{% lang_text 'savings_rate' %}</span>
+                <span class="stat-icon">◎</span>
+            </div>
+            <div class="stat-value" data-countup="{{ savings_rate }}" data-suffix="%" data-decimals="1">0%</div>
+            <div class="stat-foot">
+                {% lang_text 'of_income_saved' %}
+            </div>
         </div>
     </div>
 
-    <div class="float-logout">
-        <a href="{% url 'logout' %}" class="cyber-btn logout-btn">Logout Account</a>
+    <!-- Income vs expense -->
+    <div class="card reveal">
+        <div class="section-head">
+            <div>
+                <h2>{% lang_text 'income_vs_expense' %}</h2>
+                <p>{% lang_text 'monthly_comparison' %}</p>
+            </div>
+            <div class="chart-legend">
+                <span class="legend-item"><span class="legend-dot" style="background: var(--primary);"></span> {% lang_text 'income' %}</span>
+                <span class="legend-item"><span class="legend-dot" style="background: var(--danger);"></span> {% lang_text 'expense' %}</span>
+            </div>
+        </div>
+        <div class="chart-box"><canvas id="incomeExpenseChart"></canvas></div>
+        <div class="chart-fallback" id="incomeExpenseFallback">{% lang_text 'charts_unavailable' %}</div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-    <script>
-        const canvas = document.getElementById('bg-canvas');
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    <div class="rep-2col">
+        <!-- Spending by category -->
+        <div class="card reveal">
+            <div class="section-head">
+                <div>
+                    <h2>{% lang_text 'spending_by_category' %}</h2>
+                    <p>{% lang_text 'where_money_goes' %}</p>
+                </div>
+            </div>
+            <div class="chart-box sm"><canvas id="categoryChart"></canvas></div>
+            <div class="chart-fallback" id="categoryFallback">{% lang_text 'charts_unavailable' %}</div>
 
-        camera.position.z = 6;
+            <div class="cat-legend">
+                {% for c in category_rows %}
+                <div class="cat-legend-row">
+                    <span class="legend-dot" style="background: {{ c.color }};"></span>
+                    <span class="name">{{ c.label|default:unc }}</span>
+                    <span class="val">{{ currency_symbol }}{{ c.value|floatformat:2 }}</span>
+                    <span class="pct">{{ c.percent }}%</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
 
-        const geo1 = new THREE.IcosahedronGeometry(1.3, 1);
-        const mat1 = new THREE.MeshBasicMaterial({color:0x00a4e6, wireframe:true, transparent:true, opacity:0.22});
-        const mesh1 = new THREE.Mesh(geo1, mat1);
-        scene.add(mesh1);
+        <!-- Savings progress -->
+        <div class="card reveal" data-delay="80">
+            <div class="section-head">
+                <div>
+                    <h2>{% lang_text 'savings_progress' %}</h2>
+                    <p>{% lang_text 'savings_progress_desc' %}</p>
+                </div>
+            </div>
 
-        const geo2 = new THREE.OctahedronGeometry(0.95, 0);
-        const mat2 = new THREE.MeshBasicMaterial({color:0xc944ff, wireframe:true, transparent:true, opacity:0.18});
-        const mesh2 = new THREE.Mesh(geo2, mat2);
-        mesh2.position.set(-3, -1.2, -2.5);
-        scene.add(mesh2);
+            <div class="savings-head">
+                <span class="big">{{ savings_rate }}%</span>
+                <span class="muted">{% lang_text 'of_income_saved' %}</span>
+            </div>
 
-        const count1 = 600;
-        const geoP1 = new THREE.BufferGeometry();
-        const pos1 = new Float32Array(count1 * 3);
-        for(let i=0; i<count1*3; i++) pos1[i] = (Math.random()-0.5)*22;
-        geoP1.setAttribute('position', new THREE.BufferAttribute(pos1,3));
-        const matP1 = new THREE.PointsMaterial({ color:0x00A4E6, size:0.12, transparent:true, opacity:0.6 });
-        const particleLayer1 = new THREE.Points(geoP1, matP1);
-        scene.add(particleLayer1);
+            <div class="progress" style="margin-top:14px;">
+                <span data-width="{{ savings_progress }}"></span>
+            </div>
+            <div class="cat-row" style="margin-top:10px;">
+                <span class="dim">{% lang_text 'target' %}: {{ savings_target }}%</span>
+                <span class="dim">{{ currency_symbol }}{{ net|floatformat:2 }} {% lang_text 'saved' %}</span>
+            </div>
 
-        const count2 = 1400;
-        const geoP2 = new THREE.BufferGeometry();
-        const pos2 = new Float32Array(count2 *3);
-        for(let i=0; i<count2*3; i++) pos2[i] = (Math.random()-0.5)*30;
-        geoP2.setAttribute('position', new THREE.BufferAttribute(pos2,3));
-        const matP2 = new THREE.PointsMaterial({ color:0xc944ff, size:0.04, transparent:true, opacity:0.4 });
-        const particleLayer2 = new THREE.Points(geoP2, matP2);
-        scene.add(particleLayer2);
+            <div class="kpi-strip" style="margin-top:22px;">
+                <div class="cat-tile">
+                    <div>
+                        <small>{% lang_text 'avg_monthly_expense' %}</small>
+                        <strong>{{ currency_symbol }}{{ avg_monthly_expense|floatformat:2 }}</strong>
+                    </div>
+                </div>
+                <div class="cat-tile">
+                    <div>
+                        <small>{% lang_text 'daily_average' %}</small>
+                        <strong>{{ currency_symbol }}{{ daily_average|floatformat:2 }}</strong>
+                    </div>
+                </div>
+                <div class="cat-tile">
+                    <div>
+                        <small>{% lang_text 'best_month' %}</small>
+                        <strong class="text-income">{{ currency_symbol }}{{ highest_month.1|floatformat:2 }}</strong>
+                    </div>
+                </div>
+                <div class="cat-tile">
+                    <div>
+                        <small>{% lang_text 'highest_spending_month' %}</small>
+                        <strong class="text-expense">{{ currency_symbol }}{{ lowest_month.1|floatformat:2 }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        let mouseX = 0, mouseY = 0;
-        window.addEventListener('mousemove', (e)=>{
-            mouseX = (e.clientX / window.innerWidth - 0.5) * 0.35;
-            mouseY = -(e.clientY / window.innerHeight - 0.5) * 0.35;
-            gsap.to(camera.rotation, {x:mouseY, y:mouseX, duration:0.7, ease:"power2.out"});
+    <!-- Monthly trend -->
+    <div class="card reveal">
+        <div class="section-head">
+            <div>
+                <h2>{% lang_text 'monthly_trend' %}</h2>
+                <p>{% lang_text 'monthly_trend_desc' %}</p>
+            </div>
+        </div>
+        <div class="chart-box"><canvas id="trendChart"></canvas></div>
+        <div class="chart-fallback" id="trendFallback">{% lang_text 'charts_unavailable' %}</div>
+    </div>
+
+    {% else %}
+    <div class="card reveal">
+        <div class="empty-state">
+            <div class="empty-visual">◈</div>
+            <div class="empty-title">{% lang_text 'reports_empty_title' %}</div>
+            <div class="empty-text">{% lang_text 'reports_empty_text' %}</div>
+            <div class="empty-actions">
+                <a href="{% url 'records' %}" class="btn btn-primary btn-lg">+ {% lang_text 'add_first_record' %}</a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ month_labels|json_script:"rptMonthLabels" }}
+{{ income_series|json_script:"rptIncome" }}
+{{ expense_series|json_script:"rptExpense" }}
+{{ net_series|json_script:"rptNet" }}
+{{ category_labels|json_script:"rptCatLabels" }}
+{{ category_series|json_script:"rptCatSeries" }}
+{{ category_colors|json_script:"rptCatColors" }}
+<script>
+(function () {
+    if (!window.BK || !window.BK.hasChart()) {
+        ['incomeExpenseFallback', 'categoryFallback', 'trendFallback'].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'block';
         });
+        ['incomeExpenseChart', 'categoryChart', 'trendChart'].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.closest('.chart-box').style.display = 'none';
+        });
+        return;
+    }
 
-        const card = document.querySelector('.records-panel');
-        card.addEventListener('mousemove', (e)=>{
-            const rect = card.getBoundingClientRect();
-            const x = e.clientX - rect.left - rect.width/2;
-            const y = e.clientY - rect.top - rect.height/2;
-            gsap.to(card, {
-                rotateY: x * 0.02,
-                rotateX: -y * 0.02,
-                duration:0.2
-            })
-        })
-        card.addEventListener('mouseleave', ()=>{
-            gsap.to(card, {rotateX:0, rotateY:0, duration:0.4})
-        })
+    const read = (id) => {
+        const el = document.getElementById(id);
+        return el ? JSON.parse(el.textContent) : [];
+    };
 
-        function animate() {
-            requestAnimationFrame(animate);
-            mesh1.rotation.x += 0.003;
-            mesh1.rotation.y += 0.005;
-            mesh2.rotation.z += 0.004;
-            mesh1.position.y = Math.sin(Date.now() * 0.0008) * 0.7;
-            mesh2.position.x = Math.cos(Date.now() * 0.0006) * 0.6;
-            particleLayer1.rotation.y += 0.0009;
-            particleLayer2.rotation.x -= 0.0006;
-            renderer.render(scene, camera);
+    const monthLabels = read('rptMonthLabels');
+    const incomeData = read('rptIncome');
+    const expenseData = read('rptExpense');
+    const netData = read('rptNet');
+    const catLabels = read('rptCatLabels');
+    const catData = read('rptCatSeries');
+    const catColors = read('rptCatColors');
+
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const gridColor = isDark ? 'rgba(0,255,65,0.07)' : 'rgba(15,23,42,0.06)';
+    const textColor = isDark ? '#9CA3AF' : '#64748B';
+    const accent = isDark ? '#00FF41' : '#0EA5E9';
+    const danger = isDark ? '#FF2B4F' : '#EF4444';
+
+    Chart.defaults.font.family = "'Inter', 'Segoe UI', Roboto, system-ui, sans-serif";
+    Chart.defaults.color = textColor;
+
+    // 1. Income vs Expense — grouped bars
+    new Chart(document.getElementById('incomeExpenseChart'), {
+        type: 'bar',
+        data: {
+            labels: monthLabels,
+            datasets: [
+                {
+                    label: "{% lang_text 'income' %}",
+                    data: incomeData,
+                    backgroundColor: accent,
+                    borderRadius: 6,
+                    maxBarThickness: 26
+                },
+                {
+                    label: "{% lang_text 'expense' %}",
+                    data: expenseData,
+                    backgroundColor: danger,
+                    borderRadius: 6,
+                    maxBarThickness: 26
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 900, easing: 'easeOutQuart' },
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false, drawBorder: false }, ticks: { color: textColor } },
+                y: { beginAtZero: true, grid: { color: gridColor, drawBorder: false }, ticks: { color: textColor } }
+            }
         }
-        animate();
+    });
 
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        })
-    </script>
-</body>
-</html>
+    // 2. Spending by category — doughnut
+    new Chart(document.getElementById('categoryChart'), {
+        type: 'doughnut',
+        data: {
+            labels: catLabels,
+            datasets: [{
+                data: catData,
+                backgroundColor: catColors,
+                borderColor: isDark ? '#0A110C' : '#FFFFFF',
+                borderWidth: 3,
+                hoverOffset: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '62%',
+            animation: { duration: 900, easing: 'easeOutQuart' },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // 3. Monthly trend — net area line
+    new Chart(document.getElementById('trendChart'), {
+        type: 'line',
+        data: {
+            labels: monthLabels,
+            datasets: [{
+                label: "{% lang_text 'net_savings' %}",
+                data: netData,
+                borderColor: accent,
+                backgroundColor: isDark ? 'rgba(0,255,65,0.10)' : 'rgba(14,165,233,0.12)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                pointRadius: 4,
+                pointBackgroundColor: accent,
+                pointBorderColor: isDark ? '#050805' : '#FFFFFF',
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 1000, easing: 'easeOutQuart' },
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false, drawBorder: false }, ticks: { color: textColor } },
+                y: { grid: { color: gridColor, drawBorder: false }, ticks: { color: textColor } }
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

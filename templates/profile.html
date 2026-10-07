@@ -1,0 +1,423 @@
+{% extends 'base.html' %}
+{% load lang_tags i18n static %}
+
+{% block title %}{% lang_text "my_profile" %} | BookKeeper{% endblock %}
+
+{% block page_header %}
+<h1>{% lang_text "my_profile" %}</h1>
+<p>{% lang_text "profile_subtitle" %}</p>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-page { display: flex; flex-direction: column; gap: 24px; }
+    .profile-hero-card { display: flex; flex-direction: column; gap: 22px; }
+    .profile-facts { display: flex; gap: 10px; flex-wrap: wrap; }
+    .profile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 18px; }
+    .profile-tile { background: var(--surface-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 18px; }
+    .profile-tile small { display: block; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+    .profile-tile strong { font-size: 1.15rem; font-weight: 800; }
+    .info-list { display: flex; flex-direction: column; gap: 2px; }
+    .info-row { display: flex; justify-content: space-between; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    .info-row:last-child { border-bottom: none; }
+    .info-row .k { color: var(--text-muted); }
+    .info-row .v { font-weight: 600; text-align: right; }
+
+    /* Editable avatar */
+    .avatar-wrap { position: relative; flex-shrink: 0; }
+    .avatar-edit-btn {
+        position: absolute;
+        right: -4px;
+        bottom: -4px;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        border: 3px solid var(--surface);
+        background: linear-gradient(135deg, var(--primary-blue, #00a4e6), var(--primary-purple, #7c4dff));
+        color: #fff;
+        font-size: 1rem;
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    }
+    .avatar-edit-btn:hover { transform: scale(1.12); box-shadow: 0 6px 20px rgba(0, 164, 230, 0.5); }
+    .avatar-upload-hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 6px; }
+
+    /* Avatar modal preview */
+    .avatar-preview-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+    .avatar-preview {
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid var(--border);
+        background: var(--surface-elevated);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+    .avatar-file-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 22px;
+        border-radius: var(--radius-sm, 10px);
+        border: 1.5px dashed var(--border);
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.25s ease;
+    }
+    .avatar-file-label:hover { border-color: var(--primary-blue, #00a4e6); color: var(--primary-blue, #00a4e6); }
+    .avatar-file-label input[type="file"] { display: none; }
+    .avatar-file-name { font-size: 0.8rem; color: var(--text-muted); word-break: break-all; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-page">
+
+    <!-- Hero -->
+    <div class="card profile-hero-card reveal">
+        <div class="profile-hero">
+            <div class="avatar-wrap">
+                {% if avatar %}
+                <img src="{{ avatar.url }}" alt="{{ request.user.username }}" class="avatar avatar-xl">
+                {% else %}
+                <img src="{% static 'images/default_profile.png' %}" alt="{{ request.user.username }}" class="avatar avatar-xl">
+                {% endif %}
+                <button type="button" class="avatar-edit-btn" data-modal-open="avatarModal" title="{% lang_text 'change_photo' %}">📷</button>
+            </div>
+            <div class="profile-meta" style="flex:1; min-width:0;">
+                <h2>{{ request.user.get_full_name|default:request.user.username }}</h2>
+                <span class="email">{{ request.user.email|default:'—' }}</span>
+                <div class="profile-facts">
+                    <span class="pill">{% lang_text 'member_since' %} {{ request.user.date_joined|date:"M Y" }}</span>
+                    {% if request.user.is_active %}
+                        <span class="pill income">● {% lang_text 'active' %}</span>
+                    {% else %}
+                        <span class="pill expense">● {% lang_text 'inactive' %}</span>
+                    {% endif %}
+                    <span class="pill">@{{ request.user.username }}</span>
+                </div>
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline" data-modal-open="editProfileModal">✎ {% lang_text 'edit_profile' %}</button>
+                <button type="button" class="btn btn-primary" data-modal-open="passwordModal">⚿ {% lang_text 'change_password' %}</button>
+            </div>
+        </div>
+
+        <div class="profile-grid">
+            <div class="profile-tile">
+                <small>{% lang_text 'total_records' %}</small>
+                <strong data-countup="{{ total_records }}" data-decimals="0">{{ total_records }}</strong>
+            </div>
+            <div class="profile-tile">
+                <small>{% lang_text 'total_categories' %}</small>
+                <strong data-countup="{{ total_categories }}" data-decimals="0">{{ total_categories }}</strong>
+            </div>
+            <div class="profile-tile">
+                <small>{% lang_text 'account_created' %}</small>
+                <strong>{{ request.user.date_joined|date:"M d, Y" }}</strong>
+            </div>
+            <div class="profile-tile">
+                <small>{% lang_text 'last_login' %}</small>
+                <strong>{% if request.user.last_login %}{{ request.user.last_login|date:"M d, Y" }}{% else %}{% lang_text 'never' %}{% endif %}</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sections -->
+    <div class="card reveal">
+        <div class="tabs">
+            <button type="button" class="tab active" data-tab="panel-personal">{% lang_text 'personal_information' %}</button>
+            <button type="button" class="tab" data-tab="panel-security">{% lang_text 'security' %}</button>
+            <button type="button" class="tab" data-tab="panel-preferences">{% lang_text 'preferences' %}</button>
+        </div>
+
+        <!-- Personal information -->
+        <div class="tab-panel active" id="panel-personal">
+            <form method="post" action="{% url 'update_profile' %}" style="max-width:560px;">
+                {% csrf_token %}
+                {% if profile_form.errors %}
+                <ul class="errorlist">
+                    {% for field, errors in profile_form.errors.items %}{% for error in errors %}<li>{{ error }}</li>{% endfor %}{% endfor %}
+                </ul>
+                {% endif %}
+
+                <div class="field-row">
+                    <div class="field">
+                        <label for="id_first_name">{% lang_text 'first_name' %}</label>
+                        <input type="text" name="first_name" id="id_first_name" value="{{ profile_form.first_name.value|default:'' }}">
+                    </div>
+                    <div class="field">
+                        <label for="id_last_name">{% lang_text 'last_name' %}</label>
+                        <input type="text" name="last_name" id="id_last_name" value="{{ profile_form.last_name.value|default:'' }}">
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="id_username">{% lang_text 'username' %}</label>
+                    <input type="text" name="username" id="id_username" value="{{ profile_form.username.value|default:request.user.username }}" required>
+                </div>
+
+                <div class="field">
+                    <label for="id_email">{% lang_text 'email_address' %}</label>
+                    <input type="email" name="email" id="id_email" value="{{ profile_form.email.value|default:'' }}">
+                </div>
+
+                <button type="submit" class="btn btn-primary">{% lang_text 'save_changes' %}</button>
+            </form>
+        </div>
+
+        <!-- Security -->
+        <div class="tab-panel" id="panel-security">
+            <div class="info-list" style="max-width:560px;">
+                <div class="info-row">
+                    <span class="k">{% lang_text 'username' %}</span>
+                    <span class="v">{{ request.user.username }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="k">{% lang_text 'password' %}</span>
+                    <span class="v">••••••••</span>
+                </div>
+                <div class="info-row">
+                    <span class="k">{% lang_text 'account_status' %}</span>
+                    <span class="v">{% if request.user.is_active %}<span class="text-income">{% lang_text 'active' %}</span>{% else %}{% lang_text 'inactive' %}{% endif %}</span>
+                </div>
+                <div class="info-row">
+                    <span class="k">{% lang_text 'last_login' %}</span>
+                    <span class="v">{% if request.user.last_login %}{{ request.user.last_login|date:"M d, Y H:i" }}{% else %}{% lang_text 'never' %}{% endif %}</span>
+                </div>
+            </div>
+            <div class="btn-group" style="margin-top:22px;">
+                <button type="button" class="btn btn-primary" data-modal-open="passwordModal">⚿ {% lang_text 'change_password' %}</button>
+            </div>
+        </div>
+
+        <!-- Preferences -->
+        <div class="tab-panel" id="panel-preferences">
+            <div style="max-width:620px;">
+                <div class="setting-row">
+                    <div>
+                        <h4>{% lang_text 'appearance' %}</h4>
+                        <p>{% lang_text 'dark_mode_desc' %}</p>
+                    </div>
+                    <label class="switch control">
+                        <input type="checkbox" id="prefTheme">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-row">
+                    <div>
+                        <h4>{% lang_text 'language' %}</h4>
+                        <p>{% lang_text 'language_desc' %}</p>
+                    </div>
+                    <form action="{% url 'set_language' %}" method="post" style="margin:0;">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.path }}">
+                        <select name="language" class="select control" style="min-width:180px;" onchange="this.form.submit()">
+                            {% get_current_language as current_language %}
+                            {% get_available_languages as available_languages %}
+                            {% for lang_code, lang_name in available_languages %}
+                                <option value="{{ lang_code }}" {% if lang_code == current_language %}selected{% endif %}>{{ lang_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                </div>
+
+                <div class="setting-row">
+                    <div>
+                        <h4>{% lang_text 'currency' %}</h4>
+                        <p>{% lang_text 'currency_desc' %}</p>
+                    </div>
+                    <div class="control" style="display:flex; align-items:center; gap:12px;">
+                        <span class="pill">{{ currency_symbol }} {{ currency_code }}</span>
+                        <a href="{% url 'settings' %}" class="btn btn-sm btn-outline">{% lang_text 'settings' %}</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- ============ Edit profile modal ============ -->
+<div class="modal-backdrop" id="editProfileModal">
+    <div class="modal modal-sm" role="dialog" aria-modal="true">
+        <form method="post" action="{% url 'update_profile' %}">
+            {% csrf_token %}
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">{% lang_text 'edit_profile' %}</div>
+                    <div class="modal-sub">{% lang_text 'profile_subtitle' %}</div>
+                </div>
+                <button type="button" class="modal-close" data-modal-close aria-label="{% lang_text 'close' %}">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="field-row">
+                    <div class="field">
+                        <label for="m_first_name">{% lang_text 'first_name' %}</label>
+                        <input type="text" name="first_name" id="m_first_name" value="{{ request.user.first_name }}" data-autofocus>
+                    </div>
+                    <div class="field">
+                        <label for="m_last_name">{% lang_text 'last_name' %}</label>
+                        <input type="text" name="last_name" id="m_last_name" value="{{ request.user.last_name }}">
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="m_username">{% lang_text 'username' %}</label>
+                    <input type="text" name="username" id="m_username" value="{{ request.user.username }}" required>
+                </div>
+                <div class="field" style="margin-bottom:0;">
+                    <label for="m_email">{% lang_text 'email_address' %}</label>
+                    <input type="email" name="email" id="m_email" value="{{ request.user.email }}">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-modal-close>{% lang_text 'cancel' %}</button>
+                <button type="submit" class="btn btn-primary">{% lang_text 'save_changes' %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============ Change password modal ============ -->
+<div class="modal-backdrop" id="passwordModal">
+    <div class="modal modal-sm" role="dialog" aria-modal="true">
+        <form method="post" action="{% url 'change_password' %}">
+            {% csrf_token %}
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">{% lang_text 'change_password' %}</div>
+                    <div class="modal-sub">{% lang_text 'password_hint' %}</div>
+                </div>
+                <button type="button" class="modal-close" data-modal-close aria-label="{% lang_text 'close' %}">✕</button>
+            </div>
+            <div class="modal-body">
+                {% if password_form.errors %}
+                <ul class="errorlist">
+                    {% for field, errors in password_form.errors.items %}{% for error in errors %}<li>{{ error }}</li>{% endfor %}{% endfor %}
+                </ul>
+                {% endif %}
+
+                <div class="field">
+                    <label for="id_old_password">{% lang_text 'current_password' %}</label>
+                    <input type="password" name="old_password" id="id_old_password" required data-autofocus autocomplete="current-password">
+                </div>
+                <div class="field">
+                    <label for="id_new_password1">{% lang_text 'new_password' %}</label>
+                    <input type="password" name="new_password1" id="id_new_password1" required autocomplete="new-password">
+                </div>
+                <div class="field" style="margin-bottom:0;">
+                    <label for="id_new_password2">{% lang_text 'confirm_new_password' %}</label>
+                    <input type="password" name="new_password2" id="id_new_password2" required autocomplete="new-password">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-modal-close>{% lang_text 'cancel' %}</button>
+                <button type="submit" class="btn btn-primary">{% lang_text 'update_password' %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============ Change avatar modal ============ -->
+<div class="modal-backdrop" id="avatarModal">
+    <div class="modal modal-sm" role="dialog" aria-modal="true">
+        <form method="post" action="{% url 'update_avatar' %}" enctype="multipart/form-data" id="avatarForm">
+            {% csrf_token %}
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">{% lang_text 'change_photo' %}</div>
+                    <div class="modal-sub">{% lang_text 'change_photo_hint' %}</div>
+                </div>
+                <button type="button" class="modal-close" data-modal-close aria-label="{% lang_text 'close' %}">✕</button>
+            </div>
+            <div class="modal-body">
+                {% if avatar_errors %}
+                <ul class="errorlist">
+                    {% for error in avatar_errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+                {% endif %}
+
+                <div class="avatar-preview-wrap">
+                    <img id="avatarPreview"
+                         src="{% if avatar %}{{ avatar.url }}{% else %}{% static 'images/default_profile.png' %}{% endif %}"
+                         alt="" class="avatar-preview">
+                    <label class="avatar-file-label" for="avatarInput">
+                        <span>📁 {% lang_text 'choose_image' %}</span>
+                        <input type="file" name="avatar" id="avatarInput" accept="image/png, image/jpeg, image/webp, image/gif">
+                    </label>
+                    <span class="avatar-file-name" id="avatarFileName"></span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                {% if avatar %}
+                <button type="submit" form="removeAvatarForm" class="btn btn-danger">{% lang_text 'remove_photo' %}</button>
+                {% endif %}
+                <button type="button" class="btn btn-ghost" data-modal-close>{% lang_text 'cancel' %}</button>
+                <button type="submit" class="btn btn-primary" id="avatarSaveBtn" disabled>{% lang_text 'upload_photo' %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<form method="post" action="{% url 'remove_avatar' %}" id="removeAvatarForm" style="display:none;">
+    {% csrf_token %}
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    // Keep the in-page theme switch in sync with the current theme.
+    const prefTheme = document.getElementById('prefTheme');
+    const html = document.documentElement;
+    if (prefTheme) {
+        prefTheme.checked = html.getAttribute('data-theme') === 'dark';
+        prefTheme.addEventListener('change', () => {
+            const next = prefTheme.checked ? 'dark' : 'light';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('bookkeeper-theme', next);
+            const icon = document.getElementById('themeIcon');
+            if (icon) icon.textContent = next === 'dark' ? '☀' : '☾';
+        });
+    }
+
+    {% if open_password_modal %}
+    BK.ready(() => BK.openModal('passwordModal'));
+    {% endif %}
+
+    // Avatar upload: live preview + save button state
+    const avatarInput = document.getElementById('avatarInput');
+    const avatarPreview = document.getElementById('avatarPreview');
+    const avatarFileName = document.getElementById('avatarFileName');
+    const avatarSaveBtn = document.getElementById('avatarSaveBtn');
+    if (avatarInput) {
+        avatarInput.addEventListener('change', () => {
+            const file = avatarInput.files && avatarInput.files[0];
+            if (file) {
+                avatarFileName.textContent = file.name;
+                avatarPreview.src = URL.createObjectURL(file);
+                avatarSaveBtn.disabled = false;
+            } else {
+                avatarFileName.textContent = '';
+                avatarSaveBtn.disabled = true;
+            }
+        });
+    }
+
+    {% if request.GET.saved %}
+    BK.ready(() => {
+        {% if request.GET.saved == 'password' %}BK.toast("{% lang_text 'password_updated' %}");
+        {% elif request.GET.saved == 'avatar' %}BK.toast("{% lang_text 'photo_updated' %}");
+        {% else %}BK.toast("{% lang_text 'profile_updated' %}");{% endif %}
+    });
+    {% endif %}
+
+    {% if request.GET.removed %}
+    BK.ready(() => BK.toast("{% lang_text 'photo_removed' %}"));
+    {% endif %}
+})();
+</script>
+{% endblock %}

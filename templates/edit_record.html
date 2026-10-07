@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% load lang_tags %}
+
+{% block title %}{% lang_text "edit_transaction" %} | BookKeeper{% endblock %}
+
+{% block page_header %}
+<h1>{% lang_text "edit_transaction" %}</h1>
+<p>{% lang_text "update_transaction_details" %}</p>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-shell { max-width: 640px; }
+    .form-shell .segmented { width: 100%; }
+    .form-shell .segmented label { flex: 1; }
+    .form-shell .segmented span { width: 100%; justify-content: center; }
+    .form-footer { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card form-shell reveal">
+    <div class="section-head">
+        <div>
+            <h2>{% lang_text 'edit_transaction' %}</h2>
+            <p>{% lang_text 'update_transaction_details' %}</p>
+        </div>
+        <span class="pill {% if record.transaction_type == 'income' %}income{% else %}expense{% endif %}">
+            {{ currency_symbol }}{{ record.amount|floatformat:2 }}
+        </span>
+    </div>
+
+    <form method="POST">
+        {% csrf_token %}
+
+        {% if form.errors %}
+        <ul class="errorlist">
+            {% for field, errors in form.errors.items %}{% for error in errors %}<li>{{ error }}</li>{% endfor %}{% endfor %}
+        </ul>
+        {% endif %}
+
+        <div class="field">
+            <span class="field-label">{% lang_text 'transaction_type' %}</span>
+            <div class="segmented">
+                <label><input type="radio" name="transaction_type" value="expense" {% if record.transaction_type != 'income' %}checked{% endif %}><span>↑ {% lang_text 'expense' %}</span></label>
+                <label><input type="radio" name="transaction_type" value="income" {% if record.transaction_type == 'income' %}checked{% endif %}><span>↓ {% lang_text 'income' %}</span></label>
+            </div>
+        </div>
+
+        <div class="field-row">
+            <div class="field">
+                <label for="id_amount">{% lang_text 'amount' %}</label>
+                <input type="number" step="0.01" min="0" name="amount" id="id_amount" value="{{ record.amount }}" required>
+            </div>
+            <div class="field">
+                <label for="id_date">{% lang_text 'date' %}</label>
+                <input type="date" name="date" id="id_date" value="{{ record.date|date:'Y-m-d' }}" required>
+            </div>
+        </div>
+
+        <div class="field">
+            <label for="id_main_category">{% lang_text 'category' %}</label>
+            <select name="main_category" id="id_main_category" required>
+                <option value="">{% lang_text 'select_category' %}</option>
+                {% for mc in form.fields.main_category.queryset %}
+                    <option value="{{ mc.id }}" {% if record.main_category_id == mc.id %}selected{% endif %}>{{ mc.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="field">
+            <label for="id_subcategory">{% lang_text 'sub_category' %} <span class="dim">({% lang_text 'optional' %})</span></label>
+            <select name="subcategory" id="id_subcategory">
+                <option value="">{% lang_text 'select_category_first' %}</option>
+            </select>
+        </div>
+
+        <div class="field">
+            <label for="id_remarks">{% lang_text 'description' %} <span class="dim">({% lang_text 'optional' %})</span></label>
+            <input type="text" name="remarks" id="id_remarks" value="{{ record.remarks }}" placeholder="{% lang_text 'description_placeholder' %}">
+        </div>
+
+        <div class="field">
+            <label for="id_notes">{% lang_text 'notes' %} <span class="dim">({% lang_text 'optional' %})</span></label>
+            <textarea name="notes" id="id_notes" rows="3" placeholder="{% lang_text 'notes_placeholder' %}">{{ record.notes }}</textarea>
+        </div>
+
+        <div class="form-footer">
+            <button type="submit" class="btn btn-primary">{% lang_text 'save_changes' %}</button>
+            <a href="{% url 'records' %}" class="btn btn-ghost">{% lang_text 'cancel' %}</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const mainSelect = document.getElementById('id_main_category');
+    const subSelect = document.getElementById('id_subcategory');
+    const SUBS_URL = "{% url 'get_subcategories' %}";
+    const NO_SUBS = "{% lang_text 'no_subcategories_available' %}";
+    const SELECT_SUB = "{% lang_text 'select_sub_category' %}";
+    const SELECT_FIRST = "{% lang_text 'select_category_first' %}";
+    const currentSub = "{{ record.subcategory_id|default:'' }}";
+
+    function load(mainId, selectedId) {
+        subSelect.innerHTML = '<option value="">' + (mainId ? SELECT_SUB : SELECT_FIRST) + '</option>';
+        if (!mainId) return;
+        fetch(SUBS_URL + '?main_id=' + encodeURIComponent(mainId))
+            .then((res) => res.json())
+            .then((data) => {
+                if (!data.subcategories.length) {
+                    subSelect.innerHTML = '<option value="">' + NO_SUBS + '</option>';
+                    return;
+                }
+                data.subcategories.forEach((sub) => {
+                    const option = document.createElement('option');
+                    option.value = sub.id;
+                    option.textContent = sub.name;
+                    if (String(sub.id) === String(selectedId)) option.selected = true;
+                    subSelect.appendChild(option);
+                });
+            })
+            .catch(() => {});
+    }
+
+    mainSelect.addEventListener('change', () => load(mainSelect.value, ''));
+    if (mainSelect.value) load(mainSelect.value, currentSub);
+})();
+</script>
+{% endblock %}

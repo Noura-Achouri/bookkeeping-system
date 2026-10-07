@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% load lang_tags i18n %}
+
+{% block title %}{% lang_text "settings" %} | BookKeeper{% endblock %}
+
+{% block page_header %}
+<h1>{% lang_text "settings" %}</h1>
+<p>{% lang_text "settings_subtitle" %}</p>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .settings-page { display: flex; flex-direction: column; gap: 24px; max-width: 820px; }
+    .settings-page .card h2 { font-size: 1.05rem; font-weight: 800; margin-bottom: 4px; }
+    .settings-page .card .card-sub { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 18px; }
+    .save-bar {
+        display: flex; align-items: center; justify-content: space-between; gap: 16px;
+        flex-wrap: wrap;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="settings-page">
+
+    <!-- Appearance -->
+    <div class="card reveal">
+        <h2>{% lang_text 'appearance' %}</h2>
+        <p class="card-sub">{% lang_text 'appearance_desc' %}</p>
+        <div class="setting-row">
+            <div>
+                <h4>{% lang_text 'dark_mode' %}</h4>
+                <p>{% lang_text 'dark_mode_desc' %}</p>
+            </div>
+            <label class="switch control">
+                <input type="checkbox" id="settingsTheme">
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Language -->
+    <div class="card reveal">
+        <h2>{% lang_text 'language' %}</h2>
+        <p class="card-sub">{% lang_text 'language_desc' %}</p>
+        <div class="setting-row">
+            <div>
+                <h4>{% lang_text 'language' %}</h4>
+                <p>{% lang_text 'language_desc' %}</p>
+            </div>
+            <form action="{% url 'set_language' %}" method="post" style="margin:0;" class="control">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <select name="language" class="select" style="min-width:200px;" onchange="this.form.submit()">
+                    {% get_current_language as current_language %}
+                    {% get_available_languages as available_languages %}
+                    {% for lang_code, lang_name in available_languages %}
+                        <option value="{{ lang_code }}" {% if lang_code == current_language %}selected{% endif %}>{{ lang_name }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    </div>
+
+    <!-- Currency + notifications -->
+    <form method="post" action="{% url 'update_settings' %}" class="settings-form" style="display:flex; flex-direction:column; gap:24px;">
+        {% csrf_token %}
+
+        <div class="card reveal">
+            <h2>{% lang_text 'currency' %}</h2>
+            <p class="card-sub">{% lang_text 'currency_desc' %}</p>
+            <div class="setting-row">
+                <div>
+                    <h4>{% lang_text 'display_currency' %}</h4>
+                    <p>{% lang_text 'currency_desc' %}</p>
+                </div>
+                <select name="currency" class="select control" style="min-width:220px;">
+                    {% for code, info in currency_options.items %}
+                        <option value="{{ code }}" {% if code == currency_code %}selected{% endif %}>{{ info.symbol }} — {{ info.label }} ({{ code }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="card reveal">
+            <h2>{% lang_text 'notifications' %}</h2>
+            <p class="card-sub">{% lang_text 'notifications_desc' %}</p>
+
+            <div class="setting-row">
+                <div>
+                    <h4>{% lang_text 'notif_transactions' %}</h4>
+                    <p>{% lang_text 'notif_transactions_desc' %}</p>
+                </div>
+                <label class="switch control">
+                    <input type="checkbox" name="notify_transactions" {% if notify_transactions %}checked{% endif %}>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <div>
+                    <h4>{% lang_text 'notif_reports' %}</h4>
+                    <p>{% lang_text 'notif_reports_desc' %}</p>
+                </div>
+                <label class="switch control">
+                    <input type="checkbox" name="notify_reports" {% if notify_reports %}checked{% endif %}>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <div>
+                    <h4>{% lang_text 'notif_reminders' %}</h4>
+                    <p>{% lang_text 'notif_reminders_desc' %}</p>
+                </div>
+                <label class="switch control">
+                    <input type="checkbox" name="notify_reminders" {% if notify_reminders %}checked{% endif %}>
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="save-bar">
+            <span class="dim" style="font-size:0.82rem;">{% lang_text 'settings_saved_hint' %}</span>
+            <button type="submit" class="btn btn-primary">{% lang_text 'save_changes' %}</button>
+        </div>
+    </form>
+
+    <!-- Account -->
+    <div class="card reveal">
+        <h2>{% lang_text 'account' %}</h2>
+        <p class="card-sub">{% lang_text 'account_actions_desc' %}</p>
+
+        <div class="setting-row">
+            <div>
+                <h4>{% lang_text 'change_password' %}</h4>
+                <p>{% lang_text 'password_hint' %}</p>
+            </div>
+            <a href="{% url 'profile' %}" class="btn btn-outline control">{% lang_text 'change_password' %}</a>
+        </div>
+
+        <div class="setting-row">
+            <div>
+                <h4>{% lang_text 'logout' %}</h4>
+                <p>{% lang_text 'logout_desc' %}</p>
+            </div>
+            <a href="{% url 'logout' %}" class="btn btn-danger control">{% lang_text 'sign_out' %}</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const settingsTheme = document.getElementById('settingsTheme');
+    const html = document.documentElement;
+    if (settingsTheme) {
+        settingsTheme.checked = html.getAttribute('data-theme') === 'dark';
+        settingsTheme.addEventListener('change', () => {
+            const next = settingsTheme.checked ? 'dark' : 'light';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('bookkeeper-theme', next);
+            const icon = document.getElementById('themeIcon');
+            if (icon) icon.textContent = next === 'dark' ? '☀' : '☾';
+        });
+    }
+
+    {% if request.GET.saved %}
+    BK.ready(() => BK.toast("{% lang_text 'settings_saved' %}"));
+    {% endif %}
+})();
+</script>
+{% endblock %}

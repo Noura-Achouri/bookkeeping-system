@@ -1,0 +1,1380 @@
+{% extends 'auth_base.html' %}
+{% load lang_tags i18n static %}
+
+{% block title %}{% lang_text "hero_title" %} | BookKeeper{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Reset auth_base layout for full landing */
+    body {
+        display: block !important;
+        padding: 0 !important;
+        min-height: 100vh;
+        align-items: stretch !important;
+        justify-content: flex-start !important;
+        overflow-x: hidden;
+    }
+    /* The auth_base header already has language/theme controls; hide them so the
+       landing page's own navbar is the only one visible. */
+    .top-controls { display: none !important; }
+
+    html { scroll-behavior: smooth; }
+
+    .landing-wrap {
+        --section-pad-y: clamp(80px, 12vw, 140px);
+        position: relative;
+        z-index: 1;
+        color: var(--text);
+    }
+
+    .section-title {
+        font-size: clamp(2rem, 4vw, 3.4rem);
+        font-weight: 900;
+        line-height: 1.05;
+        letter-spacing: -1.5px;
+        color: var(--text);
+        max-width: 760px;
+    }
+    .section-title .accent {
+        background: linear-gradient(135deg, var(--primary), var(--primary-dim));
+        -webkit-background-clip: text; background-clip: text;
+        color: transparent;
+    }
+    .section-subtitle {
+        color: var(--text-muted);
+        font-size: clamp(1rem, 1.2vw, 1.15rem);
+        line-height: 1.6;
+        max-width: 620px;
+        margin-top: 18px;
+    }
+    .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 14px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        color: var(--primary);
+        background: rgba(0, 255, 65, 0.06);
+        backdrop-filter: blur(8px);
+    }
+    [data-theme="light"] .eyebrow { background: rgba(14, 165, 233, 0.08); }
+    .eyebrow .pulse {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: var(--primary);
+        box-shadow: 0 0 12px var(--primary-glow);
+        animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(1.4); }
+    }
+
+    .glass {
+        background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        backdrop-filter: blur(20px) saturate(140%);
+        -webkit-backdrop-filter: blur(20px) saturate(140%);
+        box-shadow: 0 30px 80px -20px rgba(0,0,0,0.6),
+                    inset 0 1px 0 rgba(255,255,255,0.06);
+        transition: all 0.3s ease;
+    }
+    [data-theme="light"] .glass {
+        background: linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.6) 100%);
+        box-shadow: 0 30px 80px -20px rgba(15,23,42,0.15);
+    }
+    .glass:hover {
+        border-color: var(--primary);
+        box-shadow: 0 30px 80px -20px rgba(0,0,0,0.6),
+                    0 0 30px var(--primary-glow),
+                    inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+
+    /* ============ NAV ============ */
+    .landing-nav {
+        position: fixed;
+        top: 16px; left: 50%;
+        translate: -50% 0;
+        width: calc(100% - 32px);
+        max-width: 1280px;
+        padding: 12px 24px;
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        z-index: 100;
+        border-radius: 999px;
+        background: rgba(5, 8, 5, 0.55);
+        border: 1px solid rgba(255,255,255,0.08);
+        backdrop-filter: blur(20px) saturate(140%);
+        -webkit-backdrop-filter: blur(20px) saturate(140%);
+        transition: all 0.3s ease;
+    }
+    [data-theme="light"] .landing-nav {
+        background: rgba(255,255,255,0.7);
+        border-color: rgba(15,23,42,0.08);
+    }
+    .landing-nav.scrolled {
+        background: rgba(5, 8, 5, 0.85);
+        border-color: var(--border);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    }
+    [data-theme="light"] .landing-nav.scrolled { background: rgba(255,255,255,0.95); }
+    .nav-brand {
+        display: flex; align-items: center; gap: 10px;
+        font-weight: 800; font-size: 1.05rem; letter-spacing: -0.3px;
+        color: var(--text); text-decoration: none;
+    }
+    .nav-brand .nav-logo-img {
+        width: 32px; height: 32px; border-radius: 8px;
+        object-fit: cover; background: transparent;
+    }
+    .nav-links {
+        display: flex; gap: 6px; flex: 1; justify-content: center;
+    }
+    .nav-links a {
+        padding: 8px 14px;
+        color: var(--text-muted);
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-weight: 600;
+        border-radius: 999px;
+        transition: all 0.2s ease;
+    }
+    .nav-links a:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    [data-theme="light"] .nav-links a:hover { background: rgba(15,23,42,0.05); }
+    .nav-actions { display: flex; align-items: center; gap: 10px; }
+    .nav-lang-wrap {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+    }
+    .nav-lang-wrap::after {
+        content: '';
+        position: absolute;
+        right: 12px;
+        width: 10px; height: 6px;
+        pointer-events: none;
+        background: var(--text);
+        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        mask-size: contain;
+        -webkit-mask-size: contain;
+        mask-repeat: no-repeat;
+        -webkit-mask-repeat: no-repeat;
+        mask-position: center;
+        -webkit-mask-position: center;
+        opacity: 0.8;
+    }
+    .nav-lang {
+        padding: 8px 32px 8px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.06);
+        color: var(--text);
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        outline: none;
+        transition: all 0.2s ease;
+    }
+    [data-theme="light"] .nav-lang { border-color: rgba(15,23,42,0.12); background: rgba(255,255,255,0.6); }
+    .nav-lang:hover { border-color: var(--primary); background: rgba(0, 255, 65, 0.08); }
+    [data-theme="light"] .nav-lang:hover { background: rgba(14, 165, 233, 0.08); }
+    .nav-lang:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0, 255, 65, 0.18); }
+    .nav-lang option { background: var(--surface); color: var(--text); }
+    .nav-theme {
+        width: 36px; height: 36px; border-radius: 50%;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.04);
+        color: var(--text);
+        cursor: pointer;
+        display: grid; place-items: center;
+        transition: all 0.2s ease;
+    }
+    [data-theme="light"] .nav-theme { border-color: rgba(15,23,42,0.1); background: rgba(255,255,255,0.5); }
+    .nav-theme:hover { border-color: var(--primary); color: var(--primary); }
+    .nav-cta {
+        padding: 10px 20px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dim));
+        color: #000;
+        font-weight: 800; font-size: 0.9rem;
+        text-decoration: none;
+        box-shadow: 0 4px 20px var(--primary-glow);
+        transition: all 0.2s ease;
+    }
+    [data-theme="light"] .nav-cta { color: #fff; }
+    .nav-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 30px var(--primary-glow); }
+
+    /* ============ SECTION ============ */
+    .section {
+        padding: var(--section-pad-y) clamp(24px, 6vw, 80px);
+        max-width: 1280px;
+        margin: 0 auto;
+    }
+    .section-head {
+        text-align: center;
+        margin-bottom: 60px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    /* ============ REVEAL ============ */
+    .reveal {
+        opacity: 0;
+        transform: translateY(40px);
+        transition: opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1),
+                    transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .reveal-d1 { transition-delay: 0.1s; }
+    .reveal-d2 { transition-delay: 0.2s; }
+    .reveal-d3 { transition-delay: 0.3s; }
+    .reveal-d4 { transition-delay: 0.4s; }
+    .reveal-d5 { transition-delay: 0.5s; }
+    @media (prefers-reduced-motion: reduce) {
+        .reveal { opacity: 1; transform: none; transition: none; }
+    }
+
+    /* ============ HERO ============ */
+    .hero {
+        padding-top: calc(var(--section-pad-y) + 60px);
+        display: grid;
+        grid-template-columns: 1.05fr 1fr;
+        gap: clamp(40px, 6vw, 80px);
+        align-items: center;
+        min-height: calc(100vh - 80px);
+    }
+    .hero-copy h1 {
+        font-size: clamp(2.6rem, 6vw, 5rem);
+        font-weight: 900;
+        line-height: 1.02;
+        letter-spacing: -2.5px;
+        color: var(--text);
+        margin: 24px 0 22px;
+    }
+    .hero-copy h1 .accent {
+        background: linear-gradient(135deg, var(--primary) 0%, #38bdf8 100%);
+        -webkit-background-clip: text; background-clip: text;
+        color: transparent;
+    }
+    .hero-copy .subtitle {
+        font-size: clamp(1.05rem, 1.4vw, 1.25rem);
+        color: var(--text-muted);
+        line-height: 1.6;
+        max-width: 540px;
+    }
+    .hero-ctas { display: flex; gap: 14px; margin-top: 36px; flex-wrap: wrap; }
+    .btn {
+        display: inline-flex; align-items: center; gap: 10px;
+        padding: 16px 28px;
+        border-radius: 14px;
+        font-weight: 800; font-size: 1rem;
+        text-decoration: none; cursor: pointer;
+        transition: all 0.25s ease;
+        border: none;
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, var(--primary), var(--primary-dim));
+        color: #000;
+        box-shadow: 0 8px 30px var(--primary-glow);
+    }
+    [data-theme="light"] .btn-primary { color: #fff; }
+    .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 14px 40px var(--primary-glow); }
+    .btn-ghost {
+        background: rgba(255,255,255,0.04);
+        color: var(--text);
+        border: 1px solid rgba(255,255,255,0.1);
+        backdrop-filter: blur(10px);
+    }
+    [data-theme="light"] .btn-ghost { background: rgba(255,255,255,0.6); border-color: rgba(15,23,42,0.1); }
+    .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+    .hero-trust {
+        display: flex; gap: 28px; flex-wrap: wrap;
+        margin-top: 48px;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+    }
+    .hero-trust span { display: inline-flex; align-items: center; gap: 8px; }
+    .hero-trust svg { width: 16px; height: 16px; color: var(--primary); }
+
+    /* ============ HERO MOCKUP ============ */
+    .hero-visual { position: relative; perspective: 1500px; }
+
+    .mock-dashboard {
+        position: relative;
+        transform: rotateY(-6deg) rotateX(2deg);
+        transform-style: preserve-3d;
+        padding: 24px;
+        animation: floatMock 8s ease-in-out infinite;
+        z-index: 1;
+    }
+    @keyframes floatMock {
+        0%, 100% { transform: rotateY(-6deg) rotateX(2deg) translateY(0); }
+        50% { transform: rotateY(-6deg) rotateX(2deg) translateY(-12px); }
+    }
+    .mock-dashboard:hover { transform: rotateY(-2deg) rotateX(0deg); animation-play-state: paused; }
+    .mock-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .mock-greet { font-size: 0.78rem; color: var(--text-muted); }
+    .mock-greet strong { color: var(--text); font-size: 1rem; display: block; }
+    .mock-avatar {
+        width: 40px; height: 40px; border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dim));
+        color: #000; font-weight: 900;
+        display: grid; place-items: center;
+    }
+    [data-theme="light"] .mock-avatar { color: #fff; }
+    .mock-balance {
+        padding: 20px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, rgba(0,255,65,0.12) 0%, rgba(0,255,65,0.02) 100%);
+        border: 1px solid rgba(0,255,65,0.2);
+        margin-bottom: 16px;
+    }
+    [data-theme="light"] .mock-balance {
+        background: linear-gradient(135deg, rgba(14,165,233,0.12) 0%, rgba(14,165,233,0.02) 100%);
+        border-color: rgba(14,165,233,0.2);
+    }
+    .mock-balance .label { font-size: 0.78rem; color: var(--text-muted); }
+    .mock-balance .amount {
+        font-size: clamp(1.8rem, 3vw, 2.4rem);
+        font-weight: 900; letter-spacing: -1px;
+        color: var(--text);
+        margin: 6px 0;
+    }
+    .mock-balance .trend { font-size: 0.82rem; color: var(--primary); font-weight: 700; }
+    .mock-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+    .mock-stat {
+        padding: 12px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.06);
+    }
+    [data-theme="light"] .mock-stat { background: rgba(255,255,255,0.5); border-color: rgba(15,23,42,0.06); }
+    .mock-stat .stat-label { font-size: 0.7rem; color: var(--text-muted); }
+    .mock-stat .stat-amount { font-size: 1rem; font-weight: 800; margin-top: 2px; }
+    .mock-stat.income .stat-amount { color: #4ade80; }
+    .mock-stat.expense .stat-amount { color: #fb7185; }
+    .mock-stat.savings .stat-amount { color: #38bdf8; }
+    .mock-chart {
+        padding: 14px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.06);
+        margin-bottom: 16px;
+    }
+    [data-theme="light"] .mock-chart { background: rgba(255,255,255,0.5); border-color: rgba(15,23,42,0.06); }
+    .mock-chart-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .mock-chart-head .chart-label { font-size: 0.78rem; color: var(--text-muted); font-weight: 700; }
+    .mock-chart-head .chart-pill {
+        font-size: 0.7rem; font-weight: 700;
+        padding: 3px 10px; border-radius: 999px;
+        background: rgba(74, 222, 128, 0.15); color: #4ade80;
+    }
+    .mock-chart svg { width: 100%; height: 70px; display: block; }
+    .mock-tx-list { display: flex; flex-direction: column; gap: 8px; }
+    .mock-tx {
+        display: flex; align-items: center; gap: 12px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.02);
+    }
+    [data-theme="light"] .mock-tx { background: rgba(255,255,255,0.5); }
+    .mock-tx .dot {
+        width: 32px; height: 32px; border-radius: 10px;
+        display: grid; place-items: center;
+        font-size: 0.85rem;
+    }
+    .mock-tx.in .dot { background: rgba(74,222,128,0.15); color: #4ade80; }
+    .mock-tx.out .dot { background: rgba(251,113,133,0.15); color: #fb7185; }
+    .mock-tx .name { flex: 1; font-size: 0.85rem; font-weight: 600; }
+    .mock-tx .name small { display: block; font-weight: 500; color: var(--text-muted); font-size: 0.7rem; }
+    .mock-tx .amt { font-weight: 800; font-size: 0.9rem; }
+    .mock-tx.in .amt { color: #4ade80; }
+    .mock-tx.out .amt { color: #fb7185; }
+    .mock-savings {
+        margin-top: 14px;
+        padding: 14px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.06);
+    }
+    [data-theme="light"] .mock-savings { background: rgba(255,255,255,0.5); border-color: rgba(15,23,42,0.06); }
+    .mock-savings .row { display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 8px; }
+    .mock-savings .row strong { color: var(--primary); font-weight: 800; }
+    .progress { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
+    [data-theme="light"] .progress { background: rgba(15,23,42,0.08); }
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary), var(--primary-dim));
+        border-radius: 999px;
+        width: 0%;
+        transition: width 1.6s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: 0 0 14px var(--primary-glow);
+    }
+    .mock-savings .small { font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; }
+
+    /* ============ OVERVIEW ============ */
+    .overview-grid {
+        display: grid;
+        grid-template-columns: 0.95fr 1.1fr;
+        gap: clamp(30px, 5vw, 60px);
+        align-items: center;
+    }
+    .donut-card { padding: 30px; display: grid; place-items: center; position: relative; }
+    .donut-svg { width: 100%; max-width: 320px; height: auto; }
+    .donut-center { text-align: center; margin-top: -110px; pointer-events: none; }
+    .donut-center .num {
+        font-size: clamp(1.6rem, 3vw, 2.2rem);
+        font-weight: 900; letter-spacing: -1px;
+    }
+    .donut-center .lbl { font-size: 0.85rem; color: var(--text-muted); }
+    .breakdown-list { display: flex; flex-direction: column; gap: 22px; }
+    .breakdown-item { display: flex; flex-direction: column; gap: 10px; }
+    .breakdown-row {
+        display: flex; justify-content: space-between; align-items: baseline;
+        font-size: 0.95rem;
+    }
+    .breakdown-row .name { font-weight: 700; }
+    .breakdown-row .name .swatch {
+        display: inline-block; width: 10px; height: 10px;
+        border-radius: 3px; margin-right: 10px;
+        vertical-align: middle;
+    }
+    .breakdown-row .vals { color: var(--text-muted); }
+    .breakdown-row .vals .pct { color: var(--text); font-weight: 800; margin-left: 8px; }
+    .breakdown-bar { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; }
+    [data-theme="light"] .breakdown-bar { background: rgba(15,23,42,0.06); }
+    .breakdown-fill {
+        height: 100%;
+        width: 0%;
+        border-radius: 999px;
+        transition: width 1.4s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: 0 0 12px currentColor;
+    }
+
+    /* ============ INSIGHTS ============ */
+    .insight-card {
+        max-width: 920px; margin: 0 auto;
+        padding: clamp(28px, 4vw, 48px);
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: clamp(20px, 3vw, 36px);
+        align-items: center;
+    }
+    .insight-icon {
+        width: 80px; height: 80px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, var(--primary) 0%, #38bdf8 100%);
+        display: grid; place-items: center;
+        color: #000;
+        box-shadow: 0 0 40px var(--primary-glow);
+        animation: pulseGlow 3s ease-in-out infinite;
+    }
+    @keyframes pulseGlow {
+        0%, 100% { box-shadow: 0 0 30px var(--primary-glow); transform: scale(1); }
+        50% { box-shadow: 0 0 50px var(--primary-glow); transform: scale(1.05); }
+    }
+    .insight-icon svg { width: 36px; height: 36px; }
+    .insight-body .label {
+        font-size: 0.78rem; font-weight: 800; letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--primary);
+        margin-bottom: 8px;
+        display: inline-flex; align-items: center; gap: 8px;
+    }
+    .insight-body .label::before {
+        content: ''; width: 6px; height: 6px;
+        background: var(--primary); border-radius: 50%;
+        box-shadow: 0 0 10px var(--primary-glow);
+    }
+    .insight-body .text {
+        font-size: clamp(1.05rem, 1.6vw, 1.35rem);
+        line-height: 1.55;
+        color: var(--text);
+    }
+    .insight-body .text strong { color: var(--primary); font-weight: 800; }
+    .insight-action {
+        padding: 14px 24px;
+        border-radius: 12px;
+        background: rgba(0,255,65,0.1);
+        border: 1px solid var(--primary);
+        color: var(--primary);
+        font-weight: 800; font-size: 0.9rem;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+    [data-theme="light"] .insight-action { background: rgba(14,165,233,0.1); }
+    .insight-action:hover { background: var(--primary); color: #000; }
+    [data-theme="light"] .insight-action:hover { color: #fff; }
+
+    /* ============ GOALS ============ */
+    .goals-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 22px;
+    }
+    .goal-card { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+    .goal-icon {
+        width: 52px; height: 52px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, rgba(0,255,65,0.18), rgba(0,255,65,0.04));
+        border: 1px solid rgba(0,255,65,0.25);
+        display: grid; place-items: center;
+        color: var(--primary);
+        font-size: 1.5rem;
+    }
+    [data-theme="light"] .goal-icon {
+        background: linear-gradient(135deg, rgba(14,165,233,0.18), rgba(14,165,233,0.04));
+        border-color: rgba(14,165,233,0.25);
+    }
+    .goal-name { font-weight: 800; font-size: 1.05rem; }
+    .goal-amounts { display: flex; justify-content: space-between; font-size: 0.85rem; }
+    .goal-amounts .saved { color: var(--text); font-weight: 800; }
+    .goal-amounts .target { color: var(--text-muted); }
+    .goal-pct { font-size: 1.6rem; font-weight: 900; color: var(--primary); }
+
+    /* ============ DASHBOARD PREVIEW ============ */
+    .preview-card { padding: clamp(24px, 3vw, 36px); }
+    .preview-head {
+        display: flex; align-items: center; justify-content: space-between;
+        flex-wrap: wrap; gap: 16px;
+        margin-bottom: 26px;
+    }
+    .preview-head .greet strong {
+        font-size: 1.4rem; display: block; font-weight: 800;
+    }
+    .preview-head .greet small { color: var(--text-muted); }
+    .preview-actions { display: flex; gap: 8px; }
+    .chip {
+        padding: 8px 14px;
+        border-radius: 999px;
+        font-size: 0.8rem; font-weight: 700;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(255,255,255,0.04);
+        color: var(--text-muted);
+        cursor: pointer;
+    }
+    [data-theme="light"] .chip { border-color: rgba(15,23,42,0.1); background: rgba(255,255,255,0.5); }
+    .chip.active { background: var(--primary); color: #000; border-color: var(--primary); }
+    [data-theme="light"] .chip.active { color: #fff; }
+    .preview-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+    .preview-stat {
+        padding: 16px;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.06);
+    }
+    [data-theme="light"] .preview-stat { background: rgba(255,255,255,0.6); border-color: rgba(15,23,42,0.06); }
+    .preview-stat .stat-label { font-size: 0.78rem; color: var(--text-muted); }
+    .preview-stat .stat-value { font-size: 1.6rem; font-weight: 900; margin: 4px 0; }
+    .preview-stat.income .stat-value { color: #4ade80; }
+    .preview-stat.expense .stat-value { color: #fb7185; }
+    .preview-stat.savings .stat-value { color: #38bdf8; }
+    .preview-stat.balance .stat-value { color: var(--text); }
+    .preview-stat .stat-delta { font-size: 0.78rem; font-weight: 700; }
+    .preview-stat.income .stat-delta { color: #4ade80; }
+    .preview-stat.expense .stat-delta { color: #fb7185; }
+    .preview-stat.savings .stat-delta { color: #38bdf8; }
+    .preview-stat.balance .stat-delta { color: var(--primary); }
+    .preview-row {
+        display: grid; grid-template-columns: 1.5fr 1fr;
+        gap: 18px; margin-bottom: 24px;
+    }
+    .preview-chart {
+        padding: 20px;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.06);
+    }
+    [data-theme="light"] .preview-chart { background: rgba(255,255,255,0.6); border-color: rgba(15,23,42,0.06); }
+    .preview-chart .head { display: flex; justify-content: space-between; margin-bottom: 12px; }
+    .preview-chart .head strong { font-weight: 800; }
+    .preview-chart .head small { color: var(--text-muted); font-size: 0.8rem; }
+    .bars { display: flex; align-items: flex-end; gap: 10px; height: 140px; padding-top: 10px; }
+    .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .bar-pair { display: flex; gap: 4px; width: 100%; align-items: flex-end; height: 110px; }
+    .bar {
+        flex: 1;
+        border-radius: 6px 6px 2px 2px;
+        height: 0%;
+        transition: height 1.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .bar.income { background: linear-gradient(180deg, #4ade80, #166534); }
+    .bar.expense { background: linear-gradient(180deg, #fb7185, #9f1239); }
+    .bar-col .month { font-size: 0.7rem; color: var(--text-muted); }
+    .preview-cats {
+        padding: 20px;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.06);
+    }
+    [data-theme="light"] .preview-cats { background: rgba(255,255,255,0.6); border-color: rgba(15,23,42,0.06); }
+    .preview-cats h4 { font-weight: 800; margin-bottom: 12px; font-size: 0.95rem; }
+    .cat-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.85rem; }
+    [data-theme="light"] .cat-row { border-color: rgba(15,23,42,0.06); }
+    .cat-row:last-child { border-bottom: none; }
+    .cat-row .swatch { width: 10px; height: 10px; border-radius: 3px; }
+    .cat-row .name { flex: 1; }
+    .cat-row .amt { font-weight: 800; }
+    .preview-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .preview-table th {
+        text-align: left; padding: 12px;
+        font-size: 0.75rem; font-weight: 700;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    [data-theme="light"] .preview-table th { border-color: rgba(15,23,42,0.08); }
+    .preview-table td { padding: 14px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    [data-theme="light"] .preview-table td { border-color: rgba(15,23,42,0.04); }
+    .preview-table tr:last-child td { border-bottom: none; }
+    .preview-table .cat-tag {
+        padding: 4px 10px; border-radius: 999px;
+        font-size: 0.7rem; font-weight: 700;
+        background: rgba(0,255,65,0.12); color: var(--primary);
+    }
+    [data-theme="light"] .preview-table .cat-tag { background: rgba(14,165,233,0.12); }
+    .preview-table .amt-pos { color: #4ade80; font-weight: 800; }
+    .preview-table .amt-neg { color: #fb7185; font-weight: 800; }
+
+    /* ============ COMPARE ============ */
+    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .compare-col { padding: 32px; }
+    .compare-col h3 {
+        font-size: 1.2rem; font-weight: 800;
+        margin-bottom: 22px;
+        display: inline-flex; align-items: center; gap: 10px;
+    }
+    .compare-col.before h3 { color: #fb7185; }
+    .compare-col.after h3 { color: var(--primary); }
+    .compare-list { display: flex; flex-direction: column; gap: 14px; }
+    .compare-list li {
+        list-style: none;
+        display: flex; align-items: center; gap: 14px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.05);
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+    [data-theme="light"] .compare-list li { background: rgba(255,255,255,0.5); border-color: rgba(15,23,42,0.05); }
+    .compare-col.before .icon { color: #fb7185; font-weight: 800; font-size: 1.2rem; }
+    .compare-col.after .icon { color: var(--primary); font-weight: 800; font-size: 1.2rem; }
+    .compare-headline {
+        text-align: center; margin: 50px auto 0;
+        max-width: 760px;
+        font-size: clamp(1.3rem, 2.4vw, 1.9rem);
+        font-weight: 700;
+        line-height: 1.4;
+        color: var(--text);
+    }
+    .compare-headline .accent {
+        background: linear-gradient(135deg, var(--primary), #38bdf8);
+        -webkit-background-clip: text; background-clip: text;
+        color: transparent;
+    }
+
+    /* ============ SECURITY ============ */
+    .security-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+    .security-card { padding: 30px; text-align: center; }
+    .security-icon {
+        width: 64px; height: 64px;
+        border-radius: 18px;
+        margin: 0 auto 18px;
+        display: grid; place-items: center;
+        background: linear-gradient(135deg, rgba(0,255,65,0.18), rgba(0,255,65,0.04));
+        border: 1px solid rgba(0,255,65,0.25);
+        color: var(--primary);
+    }
+    [data-theme="light"] .security-icon {
+        background: linear-gradient(135deg, rgba(14,165,233,0.18), rgba(14,165,233,0.04));
+        border-color: rgba(14,165,233,0.25);
+    }
+    .security-card h3 { font-size: 1.15rem; font-weight: 800; margin-bottom: 8px; }
+    .security-card p { color: var(--text-muted); font-size: 0.92rem; line-height: 1.55; }
+
+    /* ============ FINAL CTA ============ */
+    .final-cta-card {
+        text-align: center;
+        padding: clamp(50px, 8vw, 90px) clamp(28px, 5vw, 60px);
+        background: radial-gradient(circle at top, rgba(0,255,65,0.18), transparent 70%),
+                    linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01));
+        border: 1px solid var(--border);
+        border-radius: 32px;
+        backdrop-filter: blur(20px);
+        position: relative;
+        overflow: hidden;
+    }
+    [data-theme="light"] .final-cta-card {
+        background: radial-gradient(circle at top, rgba(14,165,233,0.18), transparent 70%),
+                    linear-gradient(180deg, rgba(255,255,255,0.7), rgba(255,255,255,0.4));
+    }
+    .final-cta-card::before {
+        content: ''; position: absolute; inset: 0;
+        background: radial-gradient(circle at 50% 0%, var(--primary-glow), transparent 60%);
+        opacity: 0.4;
+        pointer-events: none;
+    }
+    .final-cta-card > * { position: relative; z-index: 1; }
+    .final-cta-card h2 {
+        font-size: clamp(2.2rem, 5vw, 4rem);
+        font-weight: 900;
+        line-height: 1.05;
+        letter-spacing: -2px;
+        margin-bottom: 18px;
+    }
+    .final-cta-card h2 .accent {
+        background: linear-gradient(135deg, var(--primary), #38bdf8);
+        -webkit-background-clip: text; background-clip: text;
+        color: transparent;
+    }
+    .final-cta-card .subtitle {
+        font-size: clamp(1rem, 1.4vw, 1.2rem);
+        color: var(--text-muted);
+        max-width: 560px;
+        margin: 0 auto 36px;
+    }
+    .final-cta-card .btn-primary { padding: 18px 36px; font-size: 1.1rem; }
+
+    /* ============ FOOTER ============ */
+    .landing-footer {
+        border-top: 1px solid rgba(255,255,255,0.06);
+        padding: 60px clamp(24px, 6vw, 80px) 30px;
+    }
+    [data-theme="light"] .landing-footer { border-color: rgba(15,23,42,0.06); }
+    .footer-grid {
+        max-width: 1280px; margin: 0 auto;
+        display: flex; flex-direction: column; align-items: center; text-align: center;
+        gap: 18px;
+    }
+    .footer-brand { display: flex; flex-direction: column; align-items: center; }
+    .footer-brand .nav-brand { margin-bottom: 14px; }
+    .footer-brand p { color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; max-width: 420px; }
+    .footer-bottom {
+        max-width: 1280px; margin: 50px auto 0;
+        padding-top: 24px;
+        border-top: 1px solid rgba(255,255,255,0.06);
+        display: flex; justify-content: center; align-items: center; text-align: center; flex-wrap: wrap; gap: 6px 18px;
+        color: var(--text-muted); font-size: 0.85rem;
+    }
+    [data-theme="light"] .footer-bottom { border-color: rgba(15,23,42,0.06); }
+
+    /* ============ Responsive ============ */
+    @media (max-width: 980px) {
+        .hero { grid-template-columns: 1fr; padding-top: calc(var(--section-pad-y) + 100px); }
+        .hero-visual { order: -1; max-width: 480px; margin: 0 auto; }
+        .mock-dashboard { transform: none; animation: floatMockMobile 6s ease-in-out infinite; }
+        @keyframes floatMockMobile {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        .nav-links { display: none; }
+        .overview-grid { grid-template-columns: 1fr; }
+        .insight-card { grid-template-columns: 1fr; text-align: center; }
+        .insight-icon { margin: 0 auto; }
+        .compare-grid { grid-template-columns: 1fr; }
+        .security-grid { grid-template-columns: 1fr; }
+        .preview-stats { grid-template-columns: repeat(2, 1fr); }
+        .preview-row { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px) {
+        .hero-copy h1 { letter-spacing: -1.5px; }
+        .hero-trust { gap: 16px; }
+        .preview-stats { grid-template-columns: 1fr; }
+        .landing-nav { padding: 10px 16px; }
+        .nav-cta { padding: 8px 14px; font-size: 0.82rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="landing-wrap">
+
+    <!-- ============ NAV ============ -->
+    <nav class="landing-nav" id="landingNav">
+        <a href="#top" class="nav-brand">
+            <img src="{% static 'images/logo.png' %}" alt="BookKeeper" class="nav-logo-img">
+            BookKeeper
+        </a>
+        <div class="nav-links">
+            <a href="#overview">{% lang_text "nav_overview" %}</a>
+            <a href="#insights">{% lang_text "nav_insights" %}</a>
+            <a href="#goals">{% lang_text "nav_goals" %}</a>
+            <a href="#preview">{% lang_text "nav_dashboard" %}</a>
+            <a href="#security">{% lang_text "nav_security" %}</a>
+        </div>
+        <div class="nav-actions">
+            <form action="{% url 'set_language' %}" method="post" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <div class="nav-lang-wrap">
+                    <select name="language" class="nav-lang" onchange="this.form.submit()">
+                        {% get_current_language as current_language %}
+                        {% get_available_languages as available_languages %}
+                        {% for lang_code, lang_name in available_languages %}
+                            <option value="{{ lang_code }}" {% if lang_code == current_language %}selected{% endif %}>{{ lang_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+            <button class="nav-theme" id="navThemeBtn" type="button" aria-label="Toggle theme"><span id="navThemeIcon">☀</span></button>
+            {% if user.is_authenticated %}
+                <a href="{% url 'dashboard' %}" class="nav-cta">{% lang_text "dashboard" %}</a>
+            {% else %}
+                <a href="{% url 'register' %}" class="nav-cta">{% lang_text "get_started" %}</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <!-- ============ HERO ============ -->
+    <section class="section hero" id="top">
+        <div class="hero-copy reveal">
+            <span class="eyebrow"><span class="pulse"></span> {% lang_text "hero_badge" %}</span>
+            <h1>{% lang_text "hero_title_pre" %} <span class="accent">{% lang_text "hero_title_accent" %}</span>{% lang_text "hero_title_post" %}</h1>
+            <p class="subtitle">{% lang_text "hero_subtitle" %}</p>
+            <div class="hero-ctas">
+                <a href="{% url 'register' %}" class="btn btn-primary">
+                    {% lang_text "get_started" %}
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+                </a>
+                <a href="#preview" class="btn btn-ghost">{% lang_text "explore_dashboard" %}</a>
+            </div>
+            <div class="hero-trust">
+                <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>{% lang_text "trust_secure" %}</span>
+                <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>{% lang_text "trust_banks" %}</span>
+                <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15 8.5 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 9 8.5"/></svg>{% lang_text "trust_rating" %}</span>
+            </div>
+        </div>
+
+        <div class="hero-visual reveal reveal-d2">
+            <div class="glass mock-dashboard">
+                <div class="mock-head">
+                    <div class="mock-greet">{% lang_text "mock_greeting" %}<strong>James A.</strong></div>
+                    <div class="mock-avatar">J</div>
+                </div>
+                <div class="mock-balance">
+                    <div class="label">{% lang_text "mock_balance" %}</div>
+                    <div class="amount">€<span data-count="12847.32" data-decimals="2">0.00</span></div>
+                    <div class="trend">▲ +12.4% {% lang_text "mock_this_month" %}</div>
+                </div>
+                <div class="mock-stats">
+                    <div class="mock-stat income">
+                        <div class="stat-label">{% lang_text "income" %}</div>
+                        <div class="stat-amount">€<span data-count="3200" data-decimals="0">0</span></div>
+                    </div>
+                    <div class="mock-stat expense">
+                        <div class="stat-label">{% lang_text "expense" %}</div>
+                        <div class="stat-amount">€<span data-count="2128" data-decimals="0">0</span></div>
+                    </div>
+                    <div class="mock-stat savings">
+                        <div class="stat-label">{% lang_text "savings" %}</div>
+                        <div class="stat-amount">€<span data-count="1072" data-decimals="0">0</span></div>
+                    </div>
+                </div>
+                <div class="mock-chart">
+                    <div class="mock-chart-head">
+                        <span class="chart-label">{% lang_text "mock_spending_trend" %}</span>
+                        <span class="chart-pill">▲ Live</span>
+                    </div>
+                    <svg viewBox="0 0 320 70" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="lineG" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#00FF41" stop-opacity="0.4"/>
+                                <stop offset="100%" stop-color="#00FF41" stop-opacity="0"/>
+                            </linearGradient>
+                        </defs>
+                        <path d="M0,55 L40,40 L80,48 L120,32 L160,38 L200,22 L240,28 L280,12 L320,18 L320,70 L0,70 Z" fill="url(#lineG)"/>
+                        <path d="M0,55 L40,40 L80,48 L120,32 L160,38 L200,22 L240,28 L280,12 L320,18" fill="none" stroke="#00FF41" stroke-width="2"/>
+                        <circle cx="280" cy="12" r="3" fill="#00FF41"/>
+                    </svg>
+                </div>
+                <div class="mock-tx-list">
+                    <div class="mock-tx in">
+                        <div class="dot">↓</div>
+                        <div class="name">Salary Deposit<small>Today</small></div>
+                        <div class="amt">+€3,200</div>
+                    </div>
+                    <div class="mock-tx out">
+                        <div class="dot">↑</div>
+                        <div class="name">Whole Foods<small>2h ago</small></div>
+                        <div class="amt">-€84.50</div>
+                    </div>
+                    <div class="mock-tx out">
+                        <div class="dot">↑</div>
+                        <div class="name">Netflix<small>3d ago</small></div>
+                        <div class="amt">-€15.99</div>
+                    </div>
+                </div>
+                <div class="mock-savings">
+                    <div class="row"><span>{% lang_text "mock_emergency_fund" %}</span><strong>62%</strong></div>
+                    <div class="progress"><div class="progress-fill" data-fill="62"></div></div>
+                    <div class="small">€5,000 {% lang_text "mock_of" %} €8,000</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ OVERVIEW ============ -->
+    <section class="section" id="overview">
+        <div class="section-head reveal">
+            <span class="eyebrow">{% lang_text "overview_eyebrow" %}</span>
+            <h2 class="section-title">{% lang_text "overview_title" %}</h2>
+            <p class="section-subtitle">{% lang_text "overview_subtitle" %}</p>
+        </div>
+        <div class="overview-grid">
+            <div class="glass donut-card reveal">
+                <svg class="donut-svg" viewBox="0 0 200 200">
+                    <circle cx="100" cy="100" r="80" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="28"/>
+                    <circle data-seg="38" cx="100" cy="100" r="80" fill="none" stroke="#00FF41" stroke-width="28" stroke-dasharray="0 502" transform="rotate(-90 100 100)" stroke-linecap="round"/>
+                    <circle data-seg="17" cx="100" cy="100" r="80" fill="none" stroke="#4ade80" stroke-width="28" stroke-dasharray="0 502" transform="rotate(-90 100 100)" stroke-linecap="round"/>
+                    <circle data-seg="9"  cx="100" cy="100" r="80" fill="none" stroke="#38bdf8" stroke-width="28" stroke-dasharray="0 502" transform="rotate(-90 100 100)" stroke-linecap="round"/>
+                    <circle data-seg="13" cx="100" cy="100" r="80" fill="none" stroke="#fb7185" stroke-width="28" stroke-dasharray="0 502" transform="rotate(-90 100 100)" stroke-linecap="round"/>
+                    <circle data-seg="3"  cx="100" cy="100" r="80" fill="none" stroke="#fbbf24" stroke-width="28" stroke-dasharray="0 502" transform="rotate(-90 100 100)" stroke-linecap="round"/>
+                    <circle data-seg="20" cx="100" cy="100" r="80" fill="none" stroke="#a78bfa" stroke-width="28" stroke-dasharray="0 502" transform="rotate(-90 100 100)" stroke-linecap="round"/>
+                </svg>
+                <div class="donut-center">
+                    <div class="num">€<span data-count="3128" data-decimals="0">0</span></div>
+                    <div class="lbl">{% lang_text "overview_total" %}</div>
+                </div>
+            </div>
+
+            <div class="breakdown-list reveal reveal-d2">
+                <div class="breakdown-item">
+                    <div class="breakdown-row">
+                        <span class="name"><span class="swatch" style="background:#00FF41"></span>{% lang_text "cat_housing" %}</span>
+                        <span class="vals">€1,200 <span class="pct">38%</span></span>
+                    </div>
+                    <div class="breakdown-bar"><div class="breakdown-fill" data-fill="38" style="color:#00FF41; background:linear-gradient(90deg,#00FF41,#00C936);"></div></div>
+                </div>
+                <div class="breakdown-item">
+                    <div class="breakdown-row">
+                        <span class="name"><span class="swatch" style="background:#4ade80"></span>{% lang_text "cat_food" %}</span>
+                        <span class="vals">€520 <span class="pct">17%</span></span>
+                    </div>
+                    <div class="breakdown-bar"><div class="breakdown-fill" data-fill="17" style="color:#4ade80; background:linear-gradient(90deg,#4ade80,#16a34a);"></div></div>
+                </div>
+                <div class="breakdown-item">
+                    <div class="breakdown-row">
+                        <span class="name"><span class="swatch" style="background:#38bdf8"></span>{% lang_text "cat_transport" %}</span>
+                        <span class="vals">€280 <span class="pct">9%</span></span>
+                    </div>
+                    <div class="breakdown-bar"><div class="breakdown-fill" data-fill="9" style="color:#38bdf8; background:linear-gradient(90deg,#38bdf8,#0284c7);"></div></div>
+                </div>
+                <div class="breakdown-item">
+                    <div class="breakdown-row">
+                        <span class="name"><span class="swatch" style="background:#fb7185"></span>{% lang_text "cat_shopping" %}</span>
+                        <span class="vals">€420 <span class="pct">13%</span></span>
+                    </div>
+                    <div class="breakdown-bar"><div class="breakdown-fill" data-fill="13" style="color:#fb7185; background:linear-gradient(90deg,#fb7185,#be123c);"></div></div>
+                </div>
+                <div class="breakdown-item">
+                    <div class="breakdown-row">
+                        <span class="name"><span class="swatch" style="background:#fbbf24"></span>{% lang_text "cat_subscriptions" %}</span>
+                        <span class="vals">€98 <span class="pct">3%</span></span>
+                    </div>
+                    <div class="breakdown-bar"><div class="breakdown-fill" data-fill="3" style="color:#fbbf24; background:linear-gradient(90deg,#fbbf24,#d97706);"></div></div>
+                </div>
+                <div class="breakdown-item">
+                    <div class="breakdown-row">
+                        <span class="name"><span class="swatch" style="background:#a78bfa"></span>{% lang_text "cat_savings" %}</span>
+                        <span class="vals">€610 <span class="pct">20%</span></span>
+                    </div>
+                    <div class="breakdown-bar"><div class="breakdown-fill" data-fill="20" style="color:#a78bfa; background:linear-gradient(90deg,#a78bfa,#7c3aed);"></div></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ INSIGHTS ============ -->
+    <section class="section" id="insights">
+        <div class="section-head reveal">
+            <span class="eyebrow">{% lang_text "insights_eyebrow" %}</span>
+            <h2 class="section-title">{% lang_text "insights_title" %}</h2>
+            <p class="section-subtitle">{% lang_text "insights_subtitle" %}</p>
+        </div>
+        <div class="glass insight-card reveal">
+            <div class="insight-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2L9.5 8.5 2 12l7.5 3.5L12 22l2.5-6.5L22 12l-7.5-3.5L12 2zM5 18l1.5 3 3-1.5L8 17l-3 1zM3 14l1 2 2-1-1-2-2 1z"/>
+                </svg>
+            </div>
+            <div class="insight-body">
+                <div class="label">{% lang_text "insight_label" %}</div>
+                <div class="text">
+                    {% lang_text "insight_text" %}
+                </div>
+            </div>
+            <a href="{% url 'register' %}" class="insight-action">{% lang_text "insight_action" %} →</a>
+        </div>
+    </section>
+
+    <!-- ============ GOALS ============ -->
+    <section class="section" id="goals">
+        <div class="section-head reveal">
+            <span class="eyebrow">{% lang_text "goals_eyebrow" %}</span>
+            <h2 class="section-title">{% lang_text "goals_title" %}</h2>
+            <p class="section-subtitle">{% lang_text "goals_subtitle" %}</p>
+        </div>
+        <div class="goals-grid">
+            <div class="glass goal-card reveal">
+                <div class="goal-icon">🛡️</div>
+                <div>
+                    <div class="goal-name">{% lang_text "goal_emergency" %}</div>
+                    <div class="goal-amounts">
+                        <span class="saved">€5,000</span>
+                        <span class="target">{% lang_text "goal_of" %} €8,000</span>
+                    </div>
+                </div>
+                <div class="progress"><div class="progress-fill" data-fill="62"></div></div>
+                <div class="goal-pct">62%</div>
+            </div>
+            <div class="glass goal-card reveal reveal-d1">
+                <div class="goal-icon">💻</div>
+                <div>
+                    <div class="goal-name">{% lang_text "goal_laptop" %}</div>
+                    <div class="goal-amounts">
+                        <span class="saved">€1,400</span>
+                        <span class="target">{% lang_text "goal_of" %} €2,000</span>
+                    </div>
+                </div>
+                <div class="progress"><div class="progress-fill" data-fill="70"></div></div>
+                <div class="goal-pct">70%</div>
+            </div>
+            <div class="glass goal-card reveal reveal-d2">
+                <div class="goal-icon">✈️</div>
+                <div>
+                    <div class="goal-name">{% lang_text "goal_vacation" %}</div>
+                    <div class="goal-amounts">
+                        <span class="saved">€1,800</span>
+                        <span class="target">{% lang_text "goal_of" %} €3,000</span>
+                    </div>
+                </div>
+                <div class="progress"><div class="progress-fill" data-fill="60"></div></div>
+                <div class="goal-pct">60%</div>
+            </div>
+            <div class="glass goal-card reveal reveal-d3">
+                <div class="goal-icon">🎯</div>
+                <div>
+                    <div class="goal-name">{% lang_text "goal_custom" %}</div>
+                    <div class="goal-amounts">
+                        <span class="saved">€500</span>
+                        <span class="target">{% lang_text "goal_of" %} €1,500</span>
+                    </div>
+                </div>
+                <div class="progress"><div class="progress-fill" data-fill="33"></div></div>
+                <div class="goal-pct">33%</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ DASHBOARD PREVIEW ============ -->
+    <section class="section" id="preview">
+        <div class="section-head reveal">
+            <span class="eyebrow">{% lang_text "preview_eyebrow" %}</span>
+            <h2 class="section-title">{% lang_text "preview_title" %}</h2>
+            <p class="section-subtitle">{% lang_text "preview_subtitle" %}</p>
+        </div>
+        <div class="glass preview-card reveal">
+            <div class="preview-head">
+                <div class="greet">
+                    <small>{% lang_text "mock_greeting" %}</small>
+                    <strong>James Anderson</strong>
+                </div>
+                <div class="preview-actions">
+                    <span class="chip active">{% lang_text "preview_month" %}</span>
+                    <span class="chip">{% lang_text "preview_quarter" %}</span>
+                    <span class="chip">{% lang_text "preview_year" %}</span>
+                </div>
+            </div>
+
+            <div class="preview-stats">
+                <div class="preview-stat balance">
+                    <div class="stat-label">{% lang_text "mock_balance" %}</div>
+                    <div class="stat-value">€<span data-count="12847.32" data-decimals="2">0.00</span></div>
+                    <div class="stat-delta">▲ +12.4% {% lang_text "mock_this_month" %}</div>
+                </div>
+                <div class="preview-stat income">
+                    <div class="stat-label">{% lang_text "income" %}</div>
+                    <div class="stat-value">€<span data-count="5240" data-decimals="0">0</span></div>
+                    <div class="stat-delta">▲ +8.2%</div>
+                </div>
+                <div class="preview-stat expense">
+                    <div class="stat-label">{% lang_text "expense" %}</div>
+                    <div class="stat-value">€<span data-count="3128" data-decimals="0">0</span></div>
+                    <div class="stat-delta">▼ -3.1%</div>
+                </div>
+                <div class="preview-stat savings">
+                    <div class="stat-label">{% lang_text "savings" %}</div>
+                    <div class="stat-value">€<span data-count="2112" data-decimals="0">0</span></div>
+                    <div class="stat-delta">▲ +18.6%</div>
+                </div>
+            </div>
+
+            <div class="preview-row">
+                <div class="preview-chart">
+                    <div class="head">
+                        <strong>{% lang_text "preview_income_vs_expense" %}</strong>
+                        <small>{% lang_text "preview_last_6_months" %}</small>
+                    </div>
+                    <div class="bars">
+                        <div class="bar-col"><div class="bar-pair"><div class="bar income" data-h="55"></div><div class="bar expense" data-h="35"></div></div><div class="month">Apr</div></div>
+                        <div class="bar-col"><div class="bar-pair"><div class="bar income" data-h="68"></div><div class="bar expense" data-h="42"></div></div><div class="month">May</div></div>
+                        <div class="bar-col"><div class="bar-pair"><div class="bar income" data-h="62"></div><div class="bar expense" data-h="50"></div></div><div class="month">Jun</div></div>
+                        <div class="bar-col"><div class="bar-pair"><div class="bar income" data-h="80"></div><div class="bar expense" data-h="58"></div></div><div class="month">Jul</div></div>
+                        <div class="bar-col"><div class="bar-pair"><div class="bar income" data-h="75"></div><div class="bar expense" data-h="65"></div></div><div class="month">Aug</div></div>
+                        <div class="bar-col"><div class="bar-pair"><div class="bar income" data-h="92"></div><div class="bar expense" data-h="48"></div></div><div class="month">Sep</div></div>
+                    </div>
+                </div>
+
+                <div class="preview-cats">
+                    <h4>{% lang_text "preview_top_categories" %}</h4>
+                    <div class="cat-row"><span class="swatch" style="background:#00FF41"></span><span class="name">{% lang_text "cat_housing" %}</span><span class="amt">€1,200</span></div>
+                    <div class="cat-row"><span class="swatch" style="background:#4ade80"></span><span class="name">{% lang_text "cat_food" %}</span><span class="amt">€520</span></div>
+                    <div class="cat-row"><span class="swatch" style="background:#fb7185"></span><span class="name">{% lang_text "cat_shopping" %}</span><span class="amt">€420</span></div>
+                    <div class="cat-row"><span class="swatch" style="background:#38bdf8"></span><span class="name">{% lang_text "cat_transport" %}</span><span class="amt">€280</span></div>
+                    <div class="cat-row"><span class="swatch" style="background:#a78bfa"></span><span class="name">{% lang_text "cat_savings" %}</span><span class="amt">€610</span></div>
+                </div>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table class="preview-table">
+                    <thead>
+                        <tr>
+                            <th>{% lang_text "preview_date" %}</th>
+                            <th>{% lang_text "preview_description" %}</th>
+                            <th>{% lang_text "preview_category" %}</th>
+                            <th style="text-align:right;">{% lang_text "preview_amount" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Sep 24</td><td>Salary Deposit</td><td><span class="cat-tag">{% lang_text "cat_income" %}</span></td><td style="text-align:right;" class="amt-pos">+€3,200.00</td></tr>
+                        <tr><td>Sep 22</td><td>Whole Foods Market</td><td><span class="cat-tag">{% lang_text "cat_food" %}</span></td><td style="text-align:right;" class="amt-neg">-€84.50</td></tr>
+                        <tr><td>Sep 20</td><td>Uber Ride</td><td><span class="cat-tag">{% lang_text "cat_transport" %}</span></td><td style="text-align:right;" class="amt-neg">-€18.40</td></tr>
+                        <tr><td>Sep 18</td><td>Freelance Project</td><td><span class="cat-tag">{% lang_text "cat_income" %}</span></td><td style="text-align:right;" class="amt-pos">+€850.00</td></tr>
+                        <tr><td>Sep 15</td><td>Netflix Subscription</td><td><span class="cat-tag">{% lang_text "cat_subscriptions" %}</span></td><td style="text-align:right;" class="amt-neg">-€15.99</td></tr>
+                        <tr><td>Sep 12</td><td>Electricity Bill</td><td><span class="cat-tag">{% lang_text "cat_housing" %}</span></td><td style="text-align:right;" class="amt-neg">-€68.20</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ COMPARE ============ -->
+    <section class="section" id="compare">
+        <div class="section-head reveal">
+            <span class="eyebrow">{% lang_text "compare_eyebrow" %}</span>
+            <h2 class="section-title">{% lang_text "compare_title" %}</h2>
+        </div>
+        <div class="compare-grid">
+            <div class="glass compare-col before reveal">
+                <h3>{% lang_text "before_label" %}</h3>
+                <ul class="compare-list">
+                    <li><span class="icon">✕</span>{% lang_text "before_1" %}</li>
+                    <li><span class="icon">✕</span>{% lang_text "before_2" %}</li>
+                    <li><span class="icon">✕</span>{% lang_text "before_3" %}</li>
+                    <li><span class="icon">✕</span>{% lang_text "before_4" %}</li>
+                </ul>
+            </div>
+            <div class="glass compare-col after reveal reveal-d2">
+                <h3>{% lang_text "after_label" %}</h3>
+                <ul class="compare-list">
+                    <li><span class="icon">✓</span>{% lang_text "after_1" %}</li>
+                    <li><span class="icon">✓</span>{% lang_text "after_2" %}</li>
+                    <li><span class="icon">✓</span>{% lang_text "after_3" %}</li>
+                    <li><span class="icon">✓</span>{% lang_text "after_4" %}</li>
+                </ul>
+            </div>
+        </div>
+        <p class="compare-headline reveal reveal-d3">
+            {% lang_text "compare_pre" %} <span class="accent">{% lang_text "compare_accent" %}</span>{% lang_text "compare_post" %}
+        </p>
+    </section>
+
+    <!-- ============ SECURITY ============ -->
+    <section class="section" id="security">
+        <div class="section-head reveal">
+            <span class="eyebrow">{% lang_text "security_eyebrow" %}</span>
+            <h2 class="section-title">{% lang_text "security_title" %}</h2>
+            <p class="section-subtitle">{% lang_text "security_subtitle" %}</p>
+        </div>
+        <div class="security-grid">
+            <div class="glass security-card reveal">
+                <div class="security-icon">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </div>
+                <h3>{% lang_text "secure_data" %}</h3>
+                <p>{% lang_text "secure_data_desc" %}</p>
+            </div>
+            <div class="glass security-card reveal reveal-d1">
+                <div class="security-icon">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+                </div>
+                <h3>{% lang_text "always_available" %}</h3>
+                <p>{% lang_text "always_available_desc" %}</p>
+            </div>
+            <div class="glass security-card reveal reveal-d2">
+                <div class="security-icon">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/></svg>
+                </div>
+                <h3>{% lang_text "clear_insights" %}</h3>
+                <p>{% lang_text "clear_insights_desc" %}</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ FINAL CTA ============ -->
+    <section class="section">
+        <div class="final-cta-card reveal">
+            <span class="eyebrow"><span class="pulse"></span> {% lang_text "cta_eyebrow" %}</span>
+            <h2>{% lang_text "cta_title_pre" %} <span class="accent">{% lang_text "cta_title_accent" %}</span>{% lang_text "cta_title_post" %}</h2>
+            <p class="subtitle">{% lang_text "cta_subtitle" %}</p>
+            <a href="{% url 'register' %}" class="btn btn-primary">
+                {% lang_text "get_started" %}
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+            </a>
+        </div>
+    </section>
+
+    <!-- ============ FOOTER ============ -->
+    <footer class="landing-footer">
+        <div class="footer-grid">
+            <div class="footer-brand">
+                <a href="#top" class="nav-brand">
+                    <img src="{% static 'images/logo.png' %}" alt="BookKeeper" class="nav-logo-img">
+                    BookKeeper
+                </a>
+                <p>{% lang_text "footer_tagline" %}</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>© 2026 BookKeeper. {% lang_text "footer_rights" %}</span>
+            <span>{% lang_text "footer_made_with" %} ♥</span>
+        </div>
+    </footer>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    /* ============ Nav scroll state ============ */
+    const nav = document.getElementById('landingNav');
+    if (nav) {
+        const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 30);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        onScroll();
+    }
+
+    /* ============ Theme toggle wiring ============ */
+    const mainToggle = document.getElementById('themeToggle');
+    const navBtn = document.getElementById('navThemeBtn');
+    const navIcon = document.getElementById('navThemeIcon');
+    if (navBtn && mainToggle) {
+        navBtn.addEventListener('click', () => mainToggle.click());
+        const sync = () => {
+            if (navIcon) navIcon.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '☾';
+        };
+        new MutationObserver(sync).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+        sync();
+    }
+
+    /* ============ Count-up ============ */
+    function countUp(el) {
+        if (el.dataset.counted) return;
+        el.dataset.counted = '1';
+        const target = parseFloat(el.dataset.count);
+        const decimals = parseInt(el.dataset.decimals || '0', 10);
+        const duration = 1600;
+        const start = performance.now();
+        const fmt = new Intl.NumberFormat('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+        if (reduced) { el.textContent = fmt.format(target); return; }
+        function step(now) {
+            const t = Math.min(1, (now - start) / duration);
+            const eased = 1 - Math.pow(1 - t, 3);
+            el.textContent = fmt.format(target * eased);
+            if (t < 1) requestAnimationFrame(step);
+            else el.textContent = fmt.format(target);
+        }
+        requestAnimationFrame(step);
+    }
+
+    /* ============ Reveal observer ============ */
+    function animateReveal(el) {
+        el.classList.add('visible');
+        el.querySelectorAll('[data-count]').forEach(countUp);
+        el.querySelectorAll('[data-fill]').forEach(f => {
+            f.style.width = f.dataset.fill + '%';
+        });
+        el.querySelectorAll('.bar[data-h]').forEach(b => {
+            b.style.height = b.dataset.h + '%';
+        });
+    }
+    if (!reduced) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.isIntersecting) {
+                    animateReveal(e.target);
+                    observer.unobserve(e.target);
+                }
+            });
+        }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    } else {
+        document.querySelectorAll('.reveal').forEach(animateReveal);
+        document.querySelectorAll('[data-fill]').forEach(f => f.style.width = f.dataset.fill + '%');
+        document.querySelectorAll('.bar[data-h]').forEach(b => b.style.height = b.dataset.h + '%');
+        document.querySelectorAll('[data-count]').forEach(countUp);
+    }
+
+    /* ============ Donut chart ============ */
+    const donut = document.querySelector('.donut-svg');
+    if (donut && !reduced) {
+        const donutObs = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.isIntersecting) {
+                    const c = 2 * Math.PI * 80;
+                    let offset = 0;
+                    donut.querySelectorAll('circle[data-seg]').forEach((circle, i) => {
+                        const pct = parseFloat(circle.dataset.seg);
+                        const len = (pct / 100) * c;
+                        circle.style.transition = 'stroke-dasharray 1.6s cubic-bezier(0.16, 1, 0.3, 1) ' + (i * 0.08) + 's';
+                        requestAnimationFrame(() => {
+                            circle.setAttribute('stroke-dasharray', len + ' ' + c);
+                            circle.setAttribute('stroke-dashoffset', -offset);
+                        });
+                        offset += len;
+                    });
+                    donutObs.unobserve(donut);
+                }
+            });
+        }, { threshold: 0.2 });
+        donutObs.observe(donut);
+    } else if (donut) {
+        const c = 2 * Math.PI * 80;
+        let offset = 0;
+        donut.querySelectorAll('circle[data-seg]').forEach(circle => {
+            const pct = parseFloat(circle.dataset.seg);
+            const len = (pct / 100) * c;
+            circle.setAttribute('stroke-dasharray', len + ' ' + c);
+            circle.setAttribute('stroke-dashoffset', -offset);
+            offset += len;
+        });
+    }
+})();
+</script>
+{% endblock %}

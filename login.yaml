@@ -1,0 +1,57 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - combobox [ref=e4] [cursor=pointer]:
+      - option "English" [selected]
+      - option "中文"
+      - option "ⵜⴰⵎⴰⵣⵉⵖⵜ (Amazigh)"
+      - option "العربية"
+      - option "Français"
+    - button "Toggle theme" [ref=e5] [cursor=pointer]:
+      - generic [ref=e6]: ☾
+  - generic [ref=e7]:
+    - complementary [ref=e8]:
+      - link "BookKeeper BookKeeper" [ref=e9] [cursor=pointer]:
+        - /url: /home/
+        - img "BookKeeper" [ref=e10]
+        - generic [ref=e11]: BookKeeper
+      - generic [ref=e12]: ◇ Personal Finance OS
+      - heading "Take control of your money, every single day." [level=1] [ref=e13]
+      - paragraph [ref=e14]: Join thousands of people building better financial habits with a workspace designed for clarity, not complexity.
+      - generic [ref=e15]:
+        - generic [ref=e16]: Spending Trend
+        - generic [ref=e21]: $12,480.00
+        - generic [ref=e22]: Total Balance · this month
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - generic [ref=e26]: ✓
+          - text: Track every income and expense
+        - generic [ref=e27]:
+          - generic [ref=e28]: ✓
+          - text: Beautiful reports and clear insights
+        - generic [ref=e29]:
+          - generic [ref=e30]: ✓
+          - text: Secure, private and always available
+    - generic [ref=e32]:
+      - heading "Welcome back" [level=1] [ref=e33]
+      - paragraph [ref=e34]: Sign in to continue to your financial workspace.
+      - generic [ref=e35]:
+        - generic [ref=e36]:
+          - text: Email or username
+          - textbox "Email or username" [active] [ref=e37]:
+            - /placeholder: you@example.com
+        - generic [ref=e38]:
+          - text: Password
+          - textbox "Password" [ref=e39]:
+            - /placeholder: ••••••••
+        - generic [ref=e40]:
+          - generic [ref=e41] [cursor=pointer]:
+            - checkbox "Remember me" [checked] [ref=e42]
+            - text: Remember me
+          - button "Forgot password?" [ref=e43] [cursor=pointer]
+        - button "Login" [ref=e44] [cursor=pointer]
+      - generic [ref=e45]:
+        - text: Don't have an account?
+        - link "Register" [ref=e46] [cursor=pointer]:
+          - /url: /register/
+      - link "← Home" [ref=e48] [cursor=pointer]:
+        - /url: /home/

@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% load lang_tags %}
+
+{% block title %}{% lang_text "delete_record" %} | BookKeeper{% endblock %}
+
+{% block page_header %}
+<h1>{% lang_text "delete_record" %}</h1>
+<p>{% lang_text "confirm_deletion" %}</p>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .confirm-shell { max-width: 560px; }
+    .confirm-shell .danger-visual {
+        width: 74px; height: 74px; border-radius: 22px;
+        display: grid; place-items: center; font-size: 1.9rem;
+        background: var(--danger-bg); border: 1px solid var(--danger);
+        margin-bottom: 18px;
+    }
+    .confirm-shell h2 { font-size: 1.3rem; font-weight: 800; margin-bottom: 8px; }
+    .confirm-shell .lead { color: var(--text-muted); font-size: 0.92rem; margin-bottom: 22px; }
+    .info-list { background: var(--surface-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 18px; }
+    .info-row { display: flex; justify-content: space-between; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    .info-row:last-child { border-bottom: none; }
+    .info-row .k { color: var(--text-muted); }
+    .info-row .v { font-weight: 600; text-align: right; }
+    .confirm-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card confirm-shell reveal">
+    <div class="danger-visual">⚠</div>
+    <h2>{% lang_text 'are_you_sure' %}</h2>
+    <p class="lead">{% lang_text 'cannot_be_undone' %}</p>
+
+    <div class="info-list">
+        <div class="info-row"><span class="k">{% lang_text 'type_colon' %}</span><span class="v">{{ record.get_transaction_type_display }}</span></div>
+        <div class="info-row"><span class="k">{% lang_text 'amount_colon' %}</span><span class="v">{{ currency_symbol }}{{ record.amount|floatformat:2 }}</span></div>
+        <div class="info-row"><span class="k">{% lang_text 'date_colon' %}</span><span class="v">{{ record.date|date:"M d, Y" }}</span></div>
+        <div class="info-row"><span class="k">{% lang_text 'category_colon' %}</span><span class="v">{{ record.main_category.name|default:"—" }}</span></div>
+        <div class="info-row"><span class="k">{% lang_text 'remarks_colon' %}</span><span class="v">{{ record.remarks|default:"—" }}</span></div>
+    </div>
+
+    <form method="POST">
+        {% csrf_token %}
+        <div class="confirm-actions">
+            <button type="submit" class="btn btn-danger">{% lang_text 'yes_delete' %}</button>
+            <a href="{% url 'records' %}" class="btn btn-ghost">{% lang_text 'cancel' %}</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,471 +1,814 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard | Bookkeeping System</title>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12/dist/gsap.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Roboto, monospace;
-        }
+{% extends 'base.html' %}
+{% load lang_tags %}
 
-        :root {
-            --primary-blue: #00A4E6;
-            --primary-purple: #c944ff;
-            --accent-red: #ff2b4f;
-            --dark-bg: #121420;
-            --card-bg: rgba(20, 22, 36, 0.65);
-            --input-bg: rgba(25, 28, 45, 0.7);
-            --text-white: #ffffff;
-            --text-gray: #b0c4de;
-        }
+{% block title %}{% lang_text "dashboard" %} | BookKeeper{% endblock %}
 
-        body {
-            overflow-x: hidden;
-            min-height: 100vh;
-            background: var(--dark-bg);
-            padding: 0;
-            color: var(--text-white);
-            perspective: 1200px;
-        }
+{% block page_header %}
+<h1>{% lang_text 'welcome_user' name=request.user.first_name|default:request.user.username %}</h1>
+<p>{% lang_text "financial_overview" %}</p>
+{% endblock %}
 
-        /* 3D Canvas Background + Grid Overlay */
-        #bg-canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: -3;
-            pointer-events: none;
-        }
-        .grid-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-image: linear-gradient(rgba(0, 164, 230, 0.06) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(201, 68, 255, 0.06) 1px, transparent 1px);
-            background-size: 45px 45px;
-            z-index: -2;
-            pointer-events: none;
-        }
+{% block extra_css %}
+<style>
+    .dash-page { display: flex; flex-direction: column; gap: 24px; }
+    .dash-row { display: grid; grid-template-columns: 1.35fr 1fr; gap: 24px; }
 
-        /* Keyframe Animations */
-        @keyframes sweepGlow {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-        }
-        @keyframes pulseGlow {
-            0%,100% { box-shadow: 0 0 15px rgba(0,164,230,0.3); }
-            50% { box-shadow: 0 0 30px var(--primary-blue), 0 0 45px rgba(201, 68, 255,0.4); }
-        }
-        @keyframes floatUp {
-            0%,100% { transform: translateY(0px) rotate3d(0,0,0,0deg); }
-            50% { transform: translateY(-6px) rotate3d(0.2,0.15,0,1deg); }
-        }
+    .dash-list { display: flex; flex-direction: column; }
+    .dash-item {
+        display: flex; align-items: center; justify-content: space-between; gap: 14px;
+        padding: 14px 6px;
+        border-bottom: 1px solid var(--border);
+        border-radius: 12px;
+        transition: background 0.2s ease;
+    }
+    .dash-item:last-child { border-bottom: none; }
+    .dash-item:hover { background: var(--surface-elevated); }
+    .dash-item .left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .dash-item .icon {
+        width: 42px; height: 42px; flex: none;
+        border-radius: 13px;
+        display: grid; place-items: center;
+        background: var(--surface-elevated);
+        border: 1px solid var(--border);
+        font-size: 1rem;
+    }
+    .dash-item .icon.income { color: var(--primary); }
+    .dash-item .icon.expense { color: var(--danger); }
+    .dash-item .meta { min-width: 0; }
+    .dash-item .meta h4 { font-size: 0.93rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dash-item .meta span { font-size: 0.78rem; color: var(--text-dim); }
+    .dash-item .amount { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-        /* ONLY DOWNWARD GLOW (no glow above text, fixes overflow) */
-        @keyframes textGlow {
-            0%, 100% {
-                text-shadow: 0 15px 25px rgba(0, 164, 230, 0.55);
-            }
-            50% {
-                text-shadow: 0 18px 35px rgba(0, 164, 230, 0.7);
-            }
-        }
+    .cat-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .promo-card {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(0, 255, 65, 0.32);
+        background:
+            radial-gradient(circle at 8% 110%, rgba(0, 255, 65, 0.25) 0%, transparent 45%),
+            radial-gradient(circle at 92% -10%, rgba(16, 185, 129, 0.18) 0%, transparent 50%),
+            linear-gradient(135deg, #06281A 0%, #0B3F2B 55%, #0E5F3F 100%);
+        color: #F0FFF2;
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), 0 0 32px rgba(0, 255, 65, 0.18);
+    }
+    [data-theme="light"] .promo-card {
+        background:
+            radial-gradient(circle at 8% 110%, rgba(14, 165, 233, 0.22) 0%, transparent 45%),
+            radial-gradient(circle at 92% -10%, rgba(2, 132, 199, 0.18) 0%, transparent 50%),
+            linear-gradient(135deg, #0F4C5C 0%, #0B3D52 55%, #082C42 100%);
+    }
+    .promo-card::after {
+        content: '';
+        position: absolute;
+        top: -50%; right: -12%;
+        width: 360px; height: 360px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(0, 255, 65, 0.22) 0%, transparent 70%);
+        pointer-events: none;
+    }
+    .promo-card .promo-eyebrow {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 5px 12px; margin-bottom: 14px;
+        border-radius: var(--radius-pill);
+        background: rgba(0, 255, 65, 0.12);
+        border: 1px solid rgba(0, 255, 65, 0.4);
+        color: var(--primary);
+        font-size: 0.72rem; font-weight: 800;
+        letter-spacing: 0.8px; text-transform: uppercase;
+        position: relative; z-index: 1;
+    }
+    .promo-card h3 {
+        font-size: 1.45rem;
+        margin-bottom: 12px;
+        color: #F0FFF2;
+        font-weight: 800;
+        letter-spacing: -0.3px;
+        text-shadow: 0 0 24px rgba(0, 255, 65, 0.25);
+        position: relative; z-index: 1;
+    }
+    .promo-card h3 .accent {
+        color: var(--primary);
+        text-shadow: 0 0 18px var(--primary-glow);
+    }
+    .promo-card p {
+        font-size: 0.95rem;
+        color: rgba(240, 255, 242, 0.92);
+        margin-bottom: 22px;
+        line-height: 1.6;
+        max-width: 54ch;
+        position: relative; z-index: 1;
+    }
+    .promo-card p strong { color: #F0FFF2; font-weight: 700; }
+    .promo-card .promo-metrics {
+        display: flex; gap: 22px; flex-wrap: wrap;
+        margin: 0 0 22px;
+        padding: 14px 18px;
+        background: rgba(0, 0, 0, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 14px;
+        position: relative; z-index: 1;
+    }
+    .promo-card .promo-metric { display: flex; flex-direction: column; gap: 2px; }
+    .promo-card .promo-metric .num {
+        font-size: 1.1rem; font-weight: 800;
+        color: var(--primary);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.3px;
+    }
+    .promo-card .promo-metric .lbl {
+        font-size: 0.72rem;
+        color: rgba(240, 255, 242, 0.75);
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+    .promo-card .btn {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 12px 26px;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dim));
+        border: 1px solid var(--primary);
+        border-radius: var(--radius-pill);
+        color: #00120a;
+        font-weight: 800;
+        font-size: 0.9rem;
+        box-shadow: 0 6px 22px var(--primary-glow);
+        position: relative; z-index: 1;
+        transition: var(--transition);
+    }
+    [data-theme="light"] .promo-card .btn { color: #fff; }
+    .promo-card .btn:hover {
+        background: linear-gradient(135deg, var(--primary-dim), #00FF41);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 30px var(--primary-glow);
+    }
 
-        /* Navbar Header (Glassmorphism) */
-        .main-nav {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            backdrop-filter: blur(14px);
-            background: rgba(20,22,36,0.6);
-            border-bottom: 1px solid rgba(0,164,230,0.3);
-            padding: 20px 40px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            overflow: visible;
-        }
-        .page-title {
-            font-size: 3rem;
-            color: var(--primary-blue);
-            animation: textGlow 4s infinite ease-in-out;
-            letter-spacing: 2px;
-            font-weight: 900;
-            /* Prevent glow overflow outside navbar */
-            overflow: visible;
-        }
-        .nav-actions {
-            display: flex;
-            gap: 20px;
-            align-items: center;
-        }
+    /* ============ Credit card stack (decorative, inside promo card) ============ */
+    .promo-card .card-stack {
+        position: absolute;
+        top: 50%;
+        right: -90px;
+        width: 320px;
+        height: 205px;
+        transform: translateY(-50%) rotateX(8deg) rotateY(-14deg) rotateZ(-5deg);
+        transform-style: preserve-3d;
+        z-index: 1;
+        animation: floatCards 7s ease-in-out infinite;
+        pointer-events: none;
+    }
+    @keyframes floatCards {
+        0%, 100% { transform: translateY(-50%) rotateX(8deg) rotateY(-14deg) rotateZ(-5deg) translateY(0); }
+        50% { transform: translateY(-50%) rotateX(8deg) rotateY(-14deg) rotateZ(-5deg) translateY(-12px); }
+    }
+    .credit-card {
+        position: absolute;
+        width: 320px;
+        height: 200px;
+        border-radius: 20px;
+        transform-style: preserve-3d;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.12);
+        box-shadow: 0 24px 60px rgba(0,0,0,0.45), 0 0 40px rgba(0,255,65,0.15);
+        background: linear-gradient(135deg, rgba(11, 63, 43, 0.95) 0%, rgba(6, 40, 26, 0.98) 100%);
+        backdrop-filter: blur(12px);
+    }
+    .credit-card::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 20% 20%, rgba(0, 255, 65, 0.28) 0%, transparent 45%),
+            radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.18) 0%, transparent 40%),
+            linear-gradient(115deg, transparent 40%, rgba(255,255,255,0.06) 50%, transparent 60%);
+        pointer-events: none;
+    }
+    .credit-card::after {
+        content: '';
+        position: absolute;
+        top: -80%; left: -30%;
+        width: 160%; height: 160%;
+        background: conic-gradient(from 180deg, transparent 0deg, rgba(255,255,255,0.08) 30deg, transparent 60deg);
+        animation: cardSheen 6s linear infinite;
+        pointer-events: none;
+    }
+    @keyframes cardSheen { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .promo-card .credit-card:nth-child(1) { transform: translateZ(40px); }
+    .promo-card .credit-card:nth-child(2) { transform: translate(-28px, 18px) translateZ(0px) rotateZ(4deg); opacity: 0.82; filter: brightness(0.85); }
+    .promo-card .credit-card:nth-child(3) { transform: translate(-52px, 36px) translateZ(-40px) rotateZ(9deg); opacity: 0.64; filter: brightness(0.7); }
+    .card-top {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 20px 24px 14px;
+        position: relative; z-index: 1;
+    }
+    .card-chip {
+        width: 40px; height: 30px; border-radius: 6px;
+        background: linear-gradient(135deg, #fbbf24, #f59e0b);
+        position: relative;
+        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+    }
+    .card-chip::before, .card-chip::after {
+        content: ''; position: absolute; border: 1px solid rgba(0,0,0,0.25); border-radius: 2px;
+    }
+    .card-chip::before { inset: 6px 10px; border-width: 1px 0; }
+    .card-chip::after { inset: 10px 6px; border-width: 0 1px; }
+    .card-contactless {
+        width: 24px; height: 24px;
+        background: rgba(255,255,255,0.12);
+        border-radius: 50%;
+        display: grid; place-items: center;
+    }
+    .card-contactless svg { width: 14px; height: 14px; stroke: rgba(255,255,255,0.85); fill: none; stroke-width: 2; }
+    .card-number {
+        padding: 0 24px;
+        font-size: 1.25rem;
+        font-weight: 500;
+        letter-spacing: 3px;
+        color: rgba(255,255,255,0.95);
+        font-family: 'SF Mono', 'Roboto Mono', monospace;
+        position: relative; z-index: 1;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+    .card-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 16px 24px 0;
+        position: relative; z-index: 1;
+    }
+    .card-label { font-size: 0.6rem; color: rgba(255,255,255,0.55); text-transform: uppercase; letter-spacing: 0.8px; }
+    .card-value { font-size: 0.8rem; color: rgba(255,255,255,0.9); font-weight: 600; margin-top: 2px; }
+    .card-brand { position: relative; z-index: 1; display: flex; }
+    .card-brand span {
+        width: 30px; height: 30px; border-radius: 50%;
+        background: rgba(255,255,255,0.85);
+        mix-blend-mode: screen;
+    }
+    .card-brand span:last-child { margin-left: -14px; background: rgba(255,255,255,0.55); }
 
-        /* Universal Cyber Button */
-        .cyber-btn {
-            position: relative;
-            display: inline-block;
-            padding: 15px 30px;
-            background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple));
-            color: #fff;
-            text-decoration: none;
-            font-weight: 700;
-            font-size: 1.05rem;
-            border-radius: 10px;
-            border: none;
-            overflow: hidden;
-            transition: all 0.35s ease;
-            cursor: pointer;
-            transform-style: preserve-3d;
-        }
-        .cyber-btn::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
-            animation: sweepGlow 3.2s infinite linear;
-        }
-        .cyber-btn:hover {
-            transform: translateY(-4px) scale(1.03) translate3d(0,0,12px);
-            animation: pulseGlow 1.8s infinite ease-in-out;
-            mix-blend-mode: screen;
-        }
-        .cyber-btn:active {
-            transform: translateY(1px) scale(0.98);
-        }
-        .logout-btn {
-            background: linear-gradient(135deg, #770099, var(--accent-red));
-        }
+    /* Light mode: cards turn sky-blue to match the light theme accent */
+    [data-theme="light"] .credit-card {
+        background: linear-gradient(135deg, #0ea5e9 0%, #1d4ed8 100%);
+        border-color: rgba(255,255,255,0.35);
+        box-shadow: 0 24px 60px rgba(2, 62, 132, 0.3), 0 0 40px rgba(14, 165, 233, 0.25);
+    }
+    [data-theme="light"] .credit-card::before {
+        background:
+            radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.35) 0%, transparent 45%),
+            radial-gradient(circle at 90% 80%, rgba(125, 211, 252, 0.3) 0%, transparent 40%),
+            linear-gradient(115deg, transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
+    }
 
-        /* Main Wrapper Container */
-        .dashboard-wrapper {
-            position: relative;
-            z-index: 1;
-            max-width: 1250px;
-            margin: 50px auto;
-            padding: 0 30px;
-        }
+    /* ============ 3D virtual payment card (interactive) ============ */
+    .dash-hero {
+        display: grid;
+        grid-template-columns: minmax(340px, 430px) 1fr;
+        gap: 24px;
+        align-items: stretch;
+    }
+    .vcard-scene {
+        perspective: 1100px;
+        max-width: 430px;
+        width: 100%;
+        margin: 0 auto;
+        padding: 14px 0; /* room for the glow + float */
+    }
+    .vcard-float {
+        animation: vcardFloat 7s ease-in-out infinite;
+        transform-style: preserve-3d;
+    }
+    @keyframes vcardFloat {
+        0%, 100% { transform: translateY(0) rotateX(3deg) rotateY(-5deg); }
+        50% { transform: translateY(-9px) rotateX(3deg) rotateY(-5deg); }
+    }
+    .vcard3d {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1.586;
+        border-radius: 22px;
+        transform-style: preserve-3d;
+        transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+        will-change: transform;
+        overflow: hidden;
+        /* Dark Green theme (dark mode default) */
+        background:
+            radial-gradient(circle at 15% 15%, rgba(0, 255, 65, 0.25) 0%, transparent 50%),
+            radial-gradient(circle at 85% 90%, rgba(16, 185, 129, 0.3) 0%, transparent 55%),
+            linear-gradient(135deg, #06281A 0%, #0B3F2B 50%, #0E5F3F 100%);
+        border: 1px solid rgba(0, 255, 65, 0.28);
+        box-shadow:
+            0 34px 70px -18px rgba(0, 0, 0, 0.6),
+            0 12px 30px -8px rgba(0, 0, 0, 0.45),
+            0 0 44px rgba(0, 255, 65, 0.16),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        color: #F0FFF2;
+    }
+    /* Thickness: a darker back plate sitting 16px behind the card face */
+    .vcard-depth {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        transform: translateZ(-16px);
+        background: linear-gradient(135deg, #03170E 0%, #06281A 100%);
+        box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.7);
+    }
+    /* Glass reflections (static) + cursor-following glare */
+    .vcard-sheen {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background:
+            linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.13) 50%, transparent 60%),
+            radial-gradient(circle at 88% -10%, rgba(255, 255, 255, 0.16) 0%, transparent 42%);
+        pointer-events: none;
+    }
+    .vcard-glare {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: radial-gradient(420px circle at var(--gx, 50%) var(--gy, 50%),
+                    rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.05) 35%, transparent 62%);
+        opacity: var(--glow, 0);
+        transition: opacity 0.35s ease;
+        pointer-events: none;
+    }
+    .vcard-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 22px 26px 0;
+        transform: translateZ(22px);
+    }
+    .vcard-brand-name {
+        font-size: 0.95rem;
+        font-weight: 900;
+        letter-spacing: 2.5px;
+        text-shadow: 0 0 22px rgba(0, 255, 65, 0.4);
+    }
+    .vcard-contactless {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        display: grid;
+        place-items: center;
+        backdrop-filter: blur(4px);
+    }
+    .vcard-contactless svg { width: 16px; height: 16px; stroke: rgba(255, 255, 255, 0.9); fill: none; stroke-width: 2; stroke-linecap: round; }
+    .vcard-chip {
+        width: 46px;
+        height: 34px;
+        margin: 16px 26px 0;
+        border-radius: 7px;
+        background: linear-gradient(135deg, #FDE68A 0%, #FBBF24 45%, #D97706 100%);
+        position: relative;
+        transform: translateZ(30px);
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18), 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+    .vcard-chip::before, .vcard-chip::after {
+        content: '';
+        position: absolute;
+        border: 1px solid rgba(0, 0, 0, 0.3);
+        border-radius: 2px;
+    }
+    .vcard-chip::before { inset: 7px 12px; border-width: 1px 0; }
+    .vcard-chip::after { inset: 12px 7px; border-width: 0 1px; }
+    .vcard-number {
+        margin: 20px 26px 0;
+        font-size: 1.32rem;
+        font-weight: 600;
+        letter-spacing: 3.5px;
+        font-family: 'SF Mono', 'Roboto Mono', 'Cascadia Mono', monospace;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+        transform: translateZ(26px);
+        white-space: nowrap;
+    }
+    .vcard-bottom {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 0 26px 20px;
+        transform: translateZ(24px);
+    }
+    .vcard-label {
+        display: block;
+        font-size: 0.58rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        opacity: 0.6;
+    }
+    .vcard-holder, .vcard-exp {
+        display: block;
+        margin-top: 3px;
+        font-size: 0.86rem;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        white-space: nowrap;
+    }
+    .vcard-brand { display: flex; }
+    .vcard-brand span {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: #EB001B;
+        opacity: 0.92;
+    }
+    .vcard-brand span:last-child {
+        margin-left: -13px;
+        background: #F79E1B;
+        mix-blend-mode: screen;
+    }
 
-        /* Stats Grid Layout with 3D Tilt Cards */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
-            gap: 30px;
-            margin-bottom: 55px;
-        }
-        .stat-card {
-            position: relative;
-            background: var(--card-bg);
-            backdrop-filter: blur(14px);
-            border-radius: 18px;
-            padding: 40px 25px;
-            overflow: hidden;
-            border: 1px solid rgba(0,164,230,0.35);
-            transition: all 0.4s ease;
-            animation: floatUp 6s infinite ease-in-out;
-            transform-style: preserve-3d;
-            box-shadow: 0 20px 60px rgba(0,164,230,0.3);
-        }
-        .stat-card::after {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(0,164,230,0.12), transparent);
-            animation: sweepGlow 4s infinite linear;
-            pointer-events: none;
-        }
-        .stat-card:hover {
-            transform: translateY(-8px) scale(1.02);
-            box-shadow: 0 0 40px rgba(0,164,230,0.35);
-        }
-        .stat-card h4 {
-            font-size: 1.3rem;
-            color: var(--text-gray);
-            margin-bottom: 16px;
-            letter-spacing: 1px;
-        }
-        .stat-value {
-            font-size: 2.6rem;
-            font-weight: bold;
-        }
-        .income-card .stat-value { color: var(--primary-blue); text-shadow: 0 0 10px var(--primary-blue); }
-        .expense-card .stat-value { color: var(--primary-purple); text-shadow: 0 0 10px var(--primary-purple); }
-        .balance-card .stat-value { color: #ffffff; text-shadow: 0 0 14px #fff; }
+    /* Light Blue theme (light mode) */
+    [data-theme="light"] .vcard3d {
+        background:
+            radial-gradient(circle at 15% 15%, rgba(255, 255, 255, 0.45) 0%, transparent 50%),
+            radial-gradient(circle at 85% 90%, rgba(2, 132, 199, 0.35) 0%, transparent 55%),
+            linear-gradient(135deg, #A5F3FC 0%, #67E8F9 30%, #22D3EE 62%, #0891B2 100%);
+        border-color: rgba(255, 255, 255, 0.55);
+        color: #0C2D48;
+        box-shadow:
+            0 34px 70px -18px rgba(2, 62, 132, 0.4),
+            0 12px 30px -8px rgba(2, 62, 132, 0.28),
+            0 0 44px rgba(14, 165, 233, 0.28),
+            inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    }
+    [data-theme="light"] .vcard-depth { background: linear-gradient(135deg, #155E75 0%, #0E7490 100%); }
+    [data-theme="light"] .vcard-brand-name { text-shadow: 0 1px 10px rgba(255, 255, 255, 0.55); }
+    [data-theme="light"] .vcard-contactless { background: rgba(255, 255, 255, 0.35); border-color: rgba(255, 255, 255, 0.5); }
+    [data-theme="light"] .vcard-contactless svg { stroke: #0C2D48; }
+    [data-theme="light"] .vcard-number { text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4); }
+    [data-theme="light"] .vcard-label { opacity: 0.65; }
 
-        /* Records Panel Glassmorphism */
-        .records-panel {
-            background: var(--card-bg);
-            backdrop-filter: blur(14px);
-            border: 1px solid rgba(0,164,230,0.35);
-            border-radius: 18px;
-            padding: 40px;
-            margin-bottom: 60px;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0,164,230,0.25);
-        }
-        .records-panel::after {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(201, 68, 255,0.08), transparent);
-            animation: sweepGlow 5s infinite linear;
-            pointer-events: none;
-        }
-        .records-panel h3 {
-            font-size: 2.2rem;
-            color: var(--primary-blue);
-            animation: textGlow 5s infinite ease-in-out;
-        }
+    .vcard-scene:hover .vcard-float { animation-play-state: paused; }
+    @media (max-width: 1100px) {
+        .dash-hero { grid-template-columns: 1fr; }
+        .vcard-scene { max-width: 420px; }
+    }
+    @media (max-width: 480px) {
+        .vcard-number { font-size: 1.05rem; letter-spacing: 2.5px; }
+        .vcard-top { padding: 18px 20px 0; }
+        .vcard-chip { margin: 14px 20px 0; }
+        .vcard-bottom { padding: 0 20px 16px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .vcard-float { animation: none; }
+    }
 
-        /* Transaction List */
-        .transaction-list {
-            list-style: none;
-        }
-        .transaction-item {
-            padding: 18px 22px;
-            margin: 14px 0;
-            background: var(--input-bg);
-            border-left: 5px solid transparent;
-            border-radius: 10px;
-            font-size: 1.1rem;
-            transition: all 0.3s ease;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .transaction-item:hover {
-            transform: translateX(8px);
-            box-shadow: 0 0 20px rgba(0,164,230,0.25);
-        }
-        .income-row { border-left-color: var(--primary-blue); }
-        .expense-row { border-left-color: var(--primary-purple); }
-        .tag-income {
-            padding: 6px 14px;
-            background: rgba(0,164,230,0.18);
-            border: 1px solid var(--primary-blue);
-            border-radius: 20px;
-            color: var(--primary-blue);
-        }
-        .tag-expense {
-            padding: 6px 14px;
-            background: rgba(201, 68, 255,0.18);
-            border: 1px solid var(--primary-purple);
-            border-radius: 20px;
-            color: var(--primary-purple);
-        }
+    @media (max-width: 1100px) { .dash-row { grid-template-columns: 1fr; } }
+    @media (max-width: 900px) { .promo-card .card-stack { display: none; } }
+    @media (max-width: 560px) { .cat-grid-2 { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
 
-        /* Floating Logout Button */
-        .float-logout {
-            position: fixed;
-            bottom: 35px;
-            right: 35px;
-            z-index: 9;
-        }
-    </style>
-</head>
-<body>
-    <!-- 3D WebGL Canvas Background -->
-    <canvas id="bg-canvas"></canvas>
-    <!-- Gradient Grid Overlay -->
-    <div class="grid-overlay"></div>
+{% block content %}
+{% lang_text 'uncategorized' as unc %}
+<div class="dash-page">
 
-    <!-- Top Navbar -->
-    <nav class="main-nav">
-        <h1 class="page-title">DASHBOARD</h1>
-        <div class="nav-actions">
-            <a href="{% url 'add_category' %}" class="cyber-btn">+ Add Category</a>
-            <a href="{% url 'add_record' %}" class="cyber-btn">+ Add New Record</a>
-        </div>
-    </nav>
-
-    <!-- Main Dashboard Content -->
-    <div class="dashboard-wrapper">
-        <!-- 3D Stat Cards Grid -->
-        <div class="stats-grid">
-            <div class="stat-card income-card">
-                <h4>TOTAL INCOME</h4>
-                <div class="stat-value">{{ income }}</div>
-            </div>
-            <div class="stat-card expense-card">
-                <h4>TOTAL EXPENSE</h4>
-                <div class="stat-value">{{ expense }}</div>
-            </div>
-            <div class="stat-card balance-card">
-                <h4>CURRENT BALANCE</h4>
-                <div class="stat-value">{{ balance }}</div>
-            </div>
-        </div>
-
-
-        <!-- Transaction Records -->
-
-
-        <!-- Categories Quick Access Card -->
-        <div class="records-panel" style="margin-bottom: 30px;">
-            <h3>Categories</h3>
-            <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;">
-                {% for cat in recent_categories %}
-                <div class="transaction-item" style="
-                    flex: 1;
-                    min-width: 120px;
-                    justify-content: center;
-                    border-left-color: var(--neon-green);
-                    text-align: center;
-                    font-weight: 600;
-                    color: var(--neon-green);
-                ">
-                    {{ cat.name }}
+    <!-- Hero: 3D payment card + key numbers (always visible) -->
+    <div class="dash-hero">
+        <div class="vcard-scene reveal" id="vcardScene" aria-label="Virtual payment card">
+            <div class="vcard-float">
+                <div class="vcard3d" id="vcard3d">
+                    <div class="vcard-depth"></div>
+                    <div class="vcard-sheen"></div>
+                    <div class="vcard-glare"></div>
+                    <div class="vcard-top">
+                        <span class="vcard-brand-name">◈ BOOKKEEPER</span>
+                        <span class="vcard-contactless" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M2 7c2 0 2 10 6 10s2-10 6-10 2 10 6 10"/><path d="M4 7c1.5 0 1.5 10 4 10s1.5-10 4-10 1.5 10 4 10" opacity="0.6"/></svg>
+                        </span>
+                    </div>
+                    <div class="vcard-chip"></div>
+                    <div class="vcard-number">**** **** **** 4821</div>
+                    <div class="vcard-bottom">
+                        <div>
+                            <span class="vcard-label">Card Holder</span>
+                            <span class="vcard-holder">{{ request.user.get_full_name|default:request.user.username|upper }}</span>
+                        </div>
+                        <div>
+                            <span class="vcard-label">Valid Thru</span>
+                            <span class="vcard-exp">09/29</span>
+                        </div>
+                        <div class="vcard-brand" aria-hidden="true"><span></span><span></span></div>
+                    </div>
                 </div>
-                {% empty %}
-                <div class="transaction-item">No categories yet.</div>
-                {% endfor %}
             </div>
-            <a href="{% url 'category_list' %}" class="cyber-btn" style="font-size: 0.95rem; padding: 12px 24px;">
-                Manage All Categories →
-            </a>
         </div>
 
-        <!-- Recent Transactions Section -->
-
-        <div class="records-panel">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-                <h3 style="margin-bottom: 0;">Recent Transaction Records</h3>
-                <a href="{% url 'records' %}" class="cyber-btn" style="font-size: 0.95rem; padding: 12px 24px;">
-                    View All Records →
-                </a>
+        <!-- Key numbers -->
+        <div class="stat-grid">
+        <div class="stat-card reveal">
+            <div class="stat-head">
+                <span class="stat-label">{% lang_text 'current_balance' %}</span>
+                <span class="stat-icon">◈</span>
             </div>
-            <ul class="transaction-list">
+            <div class="stat-value {% if balance >= 0 %}income{% else %}expense{% endif %}"
+                 data-countup="{{ balance|floatformat:'2u' }}" data-prefix="{{ currency_symbol }}">{{ currency_symbol }}0.00</div>
+            <div class="stat-foot">{% lang_text 'net_of_all' %}</div>
+        </div>
+
+        <div class="stat-card reveal" data-delay="60">
+            <div class="stat-head">
+                <span class="stat-label">{% lang_text 'total_income' %}</span>
+                <span class="stat-icon">↓</span>
+            </div>
+            <div class="stat-value income" data-countup="{{ income|floatformat:'2u' }}" data-prefix="{{ currency_symbol }}">{{ currency_symbol }}0.00</div>
+            <div class="stat-foot">{% lang_text 'all_time_income' %}</div>
+        </div>
+
+        <div class="stat-card reveal" data-delay="120">
+            <div class="stat-head">
+                <span class="stat-label">{% lang_text 'total_expense' %}</span>
+                <span class="stat-icon danger">↑</span>
+            </div>
+            <div class="stat-value expense" data-countup="{{ expense|floatformat:'2u' }}" data-prefix="{{ currency_symbol }}">{{ currency_symbol }}0.00</div>
+            <div class="stat-foot">{% lang_text 'all_time_expense' %}</div>
+        </div>
+    </div>
+    </div><!-- /.dash-hero -->
+
+    {% if not income and not expense and not records %}
+    <!-- First-run empty state -->
+    <div class="card reveal">
+        <div class="empty-state">
+            <div class="empty-visual">◈</div>
+            <div class="empty-title">{% lang_text 'dashboard_empty_title' %}</div>
+            <div class="empty-text">{% lang_text 'dashboard_ready' %}</div>
+            <div class="empty-actions">
+                <a href="{% url 'add_record' %}" class="btn btn-primary btn-lg">+ {% lang_text 'add_your_first_record' %}</a>
+                <a href="{% url 'category_list' %}" class="btn btn-outline btn-lg">{% lang_text 'create_category' %}</a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+
+    <div class="dash-row">
+        <!-- Recent transactions -->
+        <div class="card reveal">
+            <div class="section-head" style="margin-bottom:12px;">
+                <div><h2>{% lang_text 'recent_transactions' %}</h2></div>
+                <a href="{% url 'records' %}" class="btn btn-sm btn-outline">{% lang_text 'view_all' %}</a>
+            </div>
+
+            {% if records %}
+            <div class="dash-list">
                 {% for r in records %}
-                {% if r.transaction_type == 'Income' %}
-                    <li class="transaction-item income-row">
-                        <span>{{ r.transaction_type }}</span>
-                        <span class="tag-income">+ {{ r.amount }}</span>
-                    </li>
-                {% else %}
-                    <li class="transaction-item expense-row">
-                        <span>{{ r.transaction_type }}</span>
-                        <span class="tag-expense">- {{ r.amount }}</span>
-                    </li>
-                {% endif %}
-                {% empty %}
-                    <li class="transaction-item">No transaction records created yet.</li>
+                <div class="dash-item">
+                    <div class="left">
+                        <div class="icon {% if r.transaction_type == 'income' %}income{% else %}expense{% endif %}">
+                            {% if r.transaction_type == 'income' %}↓{% else %}↑{% endif %}
+                        </div>
+                        <div class="meta">
+                            <h4>{{ r.remarks|default:r.main_category.name|default:unc }}</h4>
+                            <span>{{ r.date|date:"M d, Y" }} · {{ r.main_category.name|default:unc }}</span>
+                        </div>
+                    </div>
+                    <div class="amount {% if r.transaction_type == 'income' %}text-income{% else %}text-expense{% endif %}">
+                        {% if r.transaction_type == 'income' %}+{% else %}−{% endif %}{{ currency_symbol }}{{ r.amount|floatformat:2 }}
+                    </div>
+                </div>
                 {% endfor %}
-            </ul>
+            </div>
+            {% else %}
+            <div class="empty-state" style="padding:36px 16px;">
+                <div class="empty-visual" style="width:80px;height:80px;font-size:1.9rem;">≡</div>
+                <div class="empty-title" style="font-size:1rem;">{% lang_text 'records_empty_title' %}</div>
+                <div class="empty-text">{% lang_text 'records_empty_text' %}</div>
+                <div class="empty-actions">
+                    <a href="{% url 'add_record' %}" class="btn btn-primary">+ {% lang_text 'add_record' %}</a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Top categories -->
+        <div class="card reveal" data-delay="80">
+            <div class="section-head" style="margin-bottom:12px;">
+                <div><h2>{% lang_text 'top_categories' %}</h2></div>
+                <span class="pill expense">{% lang_text 'expense' %}</span>
+            </div>
+
+            {% if category_pairs %}
+            <div class="cat-grid-2">
+                {% for cat in category_pairs %}
+                <div class="profile-tile" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                    <span style="display:flex; align-items:center; gap:8px; min-width:0;">
+                        <span class="legend-dot" style="background: {{ cat.color }};"></span>
+                        <span style="font-size:0.86rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ cat.label }}</span>
+                    </span>
+                    <strong style="font-size:0.95rem;">{{ currency_symbol }}{{ cat.value|floatformat:2 }}</strong>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state" style="padding:36px 16px;">
+                <div class="empty-visual" style="width:80px;height:80px;font-size:1.9rem;">⊞</div>
+                <div class="empty-title" style="font-size:1rem;">{% lang_text 'no_category_data' %}</div>
+                <div class="empty-actions">
+                    <a href="{% url 'add_record' %}" class="btn btn-primary">+ {% lang_text 'add_record' %}</a>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 
-    <!-- Floating Logout -->
-    <div class="float-logout">
-        <a href="{% url 'logout' %}" class="cyber-btn logout-btn">Logout Account</a>
+    <!-- Promo -->
+    <div class="card promo-card reveal">
+        <div class="card-stack" aria-hidden="true">
+            <div class="credit-card">
+                <div class="card-top">
+                    <div class="card-chip"></div>
+                    <div class="card-contactless">
+                        <svg viewBox="0 0 24 24"><path d="M2 7c2 0 2 10 6 10s2-10 6-10 2 10 6 10"/><path d="M4 7c1.5 0 1.5 10 4 10s1.5-10 4-10 1.5 10 4 10" opacity="0.6"/></svg>
+                    </div>
+                </div>
+                <div class="card-number">5678 9012 3456 7890</div>
+                <div class="card-row">
+                    <div>
+                        <div class="card-label">Card Holder</div>
+                        <div class="card-value">{{ request.user.get_full_name|default:request.user.username|upper }}</div>
+                    </div>
+                    <div>
+                        <div class="card-label">Expires</div>
+                        <div class="card-value">12/28</div>
+                    </div>
+                </div>
+                <div class="card-brand"><span></span><span></span></div>
+            </div>
+            <div class="credit-card"></div>
+            <div class="credit-card"></div>
+        </div>
+        <span class="promo-eyebrow">◇ {% lang_text 'hero_badge' %}</span>
+        <h3>{% lang_text 'decisions_powered' %}</h3>
+        <p>{% lang_text 'track_every' %}</p>
+        <div class="promo-metrics">
+            <div class="promo-metric">
+                <span class="num">{{ currency_symbol }}{{ balance|floatformat:2 }}</span>
+                <span class="lbl">{% lang_text 'current_balance' %}</span>
+            </div>
+            <div class="promo-metric">
+                <span class="num">{{ currency_symbol }}{{ income|floatformat:2 }}</span>
+                <span class="lbl">{% lang_text 'income' %}</span>
+            </div>
+            <div class="promo-metric">
+                <span class="num">{{ currency_symbol }}{{ expense|floatformat:2 }}</span>
+                <span class="lbl">{% lang_text 'expense' %}</span>
+            </div>
+        </div>
+        <a href="{% url 'add_record' %}" class="btn">+ {% lang_text 'add_new_record' %}</a>
     </div>
 
-    <!-- Three.js + GSAP Script -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-    <script>
-        const canvas = document.getElementById('bg-canvas');
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    <!-- Trend chart -->
+    <div class="card reveal">
+        <div class="section-head" style="margin-bottom:10px;">
+            <div>
+                <h2>{% lang_text 'income_vs_expense_trend' %}</h2>
+                <p>{% lang_text 'last_6_months' %}</p>
+            </div>
+            <div class="chart-legend">
+                <span class="legend-item"><span class="legend-dot" style="background: var(--primary);"></span> {% lang_text 'income' %}</span>
+                <span class="legend-item"><span class="legend-dot" style="background: var(--danger);"></span> {% lang_text 'expense' %}</span>
+            </div>
+        </div>
+        <div class="chart-box"><canvas id="trendChart"></canvas></div>
+        <div class="chart-fallback" id="trendFallback">{% lang_text 'charts_unavailable' %}</div>
+    </div>
 
-        camera.position.z = 6;
+    {% endif %}
+</div>
+{% endblock %}
 
-        // Floating Wireframe 3D Meshes
-        const geo1 = new THREE.IcosahedronGeometry(1.3, 1);
-        const mat1 = new THREE.MeshBasicMaterial({color:0x00a4e6, wireframe:true, transparent:true, opacity:0.22});
-        const mesh1 = new THREE.Mesh(geo1, mat1);
-        scene.add(mesh1);
+{% block extra_js %}
+{{ month_labels|json_script:"dashMonthLabels" }}
+{{ income_series|json_script:"dashIncome" }}
+{{ expense_series|json_script:"dashExpense" }}
+<script>
+/* ---- 3D payment card: mouse tilt + cursor glare (skipped for reduced motion / touch) ---- */
+(function () {
+    const scene = document.getElementById('vcardScene');
+    const card = document.getElementById('vcard3d');
+    if (!scene || !card) return;
 
-        const geo2 = new THREE.OctahedronGeometry(0.95, 0);
-        const mat2 = new THREE.MeshBasicMaterial({color:0xc944ff, wireframe:true, transparent:true, opacity:0.18});
-        const mesh2 = new THREE.Mesh(geo2, mat2);
-        mesh2.position.set(-3, -1.2, -2.5);
-        scene.add(mesh2);
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
 
-        // Double Particle Layers
-        const count1 = 600;
-        const geoP1 = new THREE.BufferGeometry();
-        const pos1 = new Float32Array(count1 * 3);
-        for(let i=0; i<count1*3; i++) pos1[i] = (Math.random()-0.5)*22;
-        geoP1.setAttribute('position', new THREE.BufferAttribute(pos1,3));
-        const matP1 = new THREE.PointsMaterial({ color:0x00A4E6, size:0.12, transparent:true, opacity:0.6 });
-        const particleLayer1 = new THREE.Points(geoP1, matP1);
-        scene.add(particleLayer1);
+    const MAX_X = 12;  // deg
+    const MAX_Y = 16;  // deg
+    const target = { rx: 0, ry: 0, gx: 50, gy: 50, glow: 0 };
+    const current = { rx: 0, ry: 0, gx: 50, gy: 50, glow: 0 };
+    let raf = null;
 
-        const count2 = 1400;
-        const geoP2 = new THREE.BufferGeometry();
-        const pos2 = new Float32Array(count2 *3);
-        for(let i=0; i<count2*3; i++) pos2[i] = (Math.random()-0.5)*30;
-        geoP2.setAttribute('position', new THREE.BufferAttribute(pos2,3));
-        const matP2 = new THREE.PointsMaterial({ color:0xc944ff, size:0.04, transparent:true, opacity:0.4 });
-        const particleLayer2 = new THREE.Points(geoP2, matP2);
-        scene.add(particleLayer2);
-
-        // Mouse Parallax Camera Movement
-        let mouseX = 0, mouseY = 0;
-        window.addEventListener('mousemove', (e)=>{
-            mouseX = (e.clientX / window.innerWidth - 0.5) * 0.35;
-            mouseY = -(e.clientY / window.innerHeight - 0.5) * 0.35;
-            gsap.to(camera.rotation, {x:mouseY, y:mouseX, duration:0.7, ease:"power2.out"});
-        });
-
-        // 3D Tilt on Stat Cards
-        const cards = document.querySelectorAll('.stat-card');
-        cards.forEach(card => {
-            card.addEventListener('mousemove', (e)=>{
-                const rect = card.getBoundingClientRect();
-                const x = e.clientX - rect.left - rect.width/2;
-                const y = e.clientY - rect.top - rect.height/2;
-                gsap.to(card, {
-                    rotateY: x * 0.02,
-                    rotateX: -y * 0.02,
-                    duration:0.2
-                })
-            })
-            card.addEventListener('mouseleave', ()=>{
-                gsap.to(card, {rotateX:0, rotateY:0, duration:0.4})
-            })
-        })
-
-        // Animation Loop
-        function animate() {
-            requestAnimationFrame(animate);
-            mesh1.rotation.x += 0.003;
-            mesh1.rotation.y += 0.005;
-            mesh2.rotation.z += 0.004;
-            mesh1.position.y = Math.sin(Date.now() * 0.0008) * 0.7;
-            mesh2.position.x = Math.cos(Date.now() * 0.0006) * 0.6;
-            particleLayer1.rotation.y += 0.0009;
-            particleLayer2.rotation.x -= 0.0006;
-            renderer.render(scene, camera);
+    function tick() {
+        let settled = true;
+        for (const k in target) {
+            const diff = target[k] - current[k];
+            if (Math.abs(diff) > 0.05) {
+                current[k] += diff * 0.09;
+                settled = false;
+            } else {
+                current[k] = target[k];
+            }
         }
-        animate();
+        card.style.setProperty('--rx', current.rx.toFixed(2) + 'deg');
+        card.style.setProperty('--ry', current.ry.toFixed(2) + 'deg');
+        card.style.setProperty('--gx', current.gx.toFixed(1) + '%');
+        card.style.setProperty('--gy', current.gy.toFixed(1) + '%');
+        card.style.setProperty('--glow', current.glow.toFixed(2));
+        raf = settled ? null : requestAnimationFrame(tick);
+    }
 
-        // Window Resize
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        })
-    </script>
-</body>
-</html>
+    scene.addEventListener('pointermove', (e) => {
+        const r = scene.getBoundingClientRect();
+        const px = Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1);
+        const py = Math.min(Math.max((e.clientY - r.top) / r.height, 0), 1);
+        target.ry = (px - 0.5) * 2 * MAX_Y;
+        target.rx = -(py - 0.5) * 2 * MAX_X;
+        target.gx = px * 100;
+        target.gy = py * 100;
+        target.glow = 1;
+        if (raf === null) raf = requestAnimationFrame(tick);
+    });
+
+    scene.addEventListener('pointerleave', () => {
+        target.rx = 0;
+        target.ry = 0;
+        target.glow = 0;
+        if (raf === null) raf = requestAnimationFrame(tick);
+    });
+})();
+
+(function () {
+    const canvas = document.getElementById('trendChart');
+    if (!canvas) return;
+
+    if (!window.BK || !window.BK.hasChart()) {
+        const fallback = document.getElementById('trendFallback');
+        if (fallback) fallback.style.display = 'block';
+        canvas.closest('.chart-box').style.display = 'none';
+        return;
+    }
+
+    const read = (id) => {
+        const el = document.getElementById(id);
+        return el ? JSON.parse(el.textContent) : [];
+    };
+
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const gridColor = isDark ? 'rgba(0,255,65,0.07)' : 'rgba(15,23,42,0.06)';
+    const textColor = isDark ? '#9CA3AF' : '#64748B';
+    const accent = isDark ? '#00FF41' : '#0EA5E9';
+    const danger = isDark ? '#FF2B4F' : '#EF4444';
+
+    Chart.defaults.font.family = "'Inter', 'Segoe UI', Roboto, system-ui, sans-serif";
+
+    new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: read('dashMonthLabels'),
+            datasets: [
+                {
+                    label: "{% lang_text 'income' %}",
+                    data: read('dashIncome'),
+                    borderColor: accent,
+                    backgroundColor: isDark ? 'rgba(0,255,65,0.10)' : 'rgba(14,165,233,0.12)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 4,
+                    pointBackgroundColor: accent,
+                    pointBorderColor: isDark ? '#050805' : '#FFFFFF',
+                    pointBorderWidth: 2
+                },
+                {
+                    label: "{% lang_text 'expense' %}",
+                    data: read('dashExpense'),
+                    borderColor: danger,
+                    backgroundColor: 'rgba(239, 68, 68, 0.06)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 4,
+                    pointBackgroundColor: danger,
+                    pointBorderColor: isDark ? '#050805' : '#FFFFFF',
+                    pointBorderWidth: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 1000, easing: 'easeOutQuart' },
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false, drawBorder: false }, ticks: { color: textColor } },
+                y: { beginAtZero: true, grid: { color: gridColor, drawBorder: false }, ticks: { color: textColor } }
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

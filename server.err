@@ -1,0 +1,9 @@
+Watching for file changes with StatReloader
+[26/Sep/2026 16:11:42] "GET /login/ HTTP/1.1" 200 25060
+[26/Sep/2026 16:11:42,534] - Broken pipe from ('127.0.0.1', 58969)
+[26/Sep/2026 16:11:48] "GET /login/ HTTP/1.1" 200 25060
+[26/Sep/2026 16:11:48,791] - Broken pipe from ('127.0.0.1', 58972)
+[26/Sep/2026 16:12:17] "GET /login/ HTTP/1.1" 302 0
+[26/Sep/2026 16:12:17] "GET /dashboard/ HTTP/1.1" 200 86586
+[26/Sep/2026 16:12:17] "GET /static/images/logo.png HTTP/1.1" 304 0
+[26/Sep/2026 16:12:17] "GET /static/images/default_profile.png HTTP/1.1" 304 0

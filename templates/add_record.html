@@ -1,375 +1,127 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add New Record | Bookkeeping System</title>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12/dist/gsap.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Roboto, monospace;
-        }
+{% extends 'base.html' %}
+{% load lang_tags %}
 
-        :root {
-            --primary-blue: #00A4E6;
-            --primary-purple: #c944ff;
-            --accent-red: #ff2b4f;
-            --dark-bg: #121420;
-            --card-bg: rgba(20, 22, 36, 0.65);
-            --input-bg: rgba(25, 28, 45, 0.7);
-            --text-white: #ffffff;
-            --text-gray: #b0c4de;
-        }
+{% block title %}{% lang_text "new_transaction" %} | BookKeeper{% endblock %}
 
-        body {
-            overflow-x: hidden;
-            min-height: 100vh;
-            background: var(--dark-bg);
-            padding: 0;
-            color: var(--text-white);
-            perspective: 1200px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 40px 20px;
-        }
+{% block page_header %}
+<h1>{% lang_text "new_transaction" %}</h1>
+<p>{% lang_text "log_new_transaction" %}</p>
+{% endblock %}
 
-        #bg-canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: -3;
-            pointer-events: none;
-        }
-        .grid-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-image: linear-gradient(rgba(0, 164, 230, 0.06) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(201, 68, 255, 0.06) 1px, transparent 1px);
-            background-size: 45px 45px;
-            z-index: -2;
-            pointer-events: none;
-        }
+{% block extra_css %}
+<style>
+    .form-shell { max-width: 640px; }
+    .form-shell .segmented { width: 100%; }
+    .form-shell .segmented label { flex: 1; }
+    .form-shell .segmented span { width: 100%; justify-content: center; }
+    .form-footer { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+</style>
+{% endblock %}
 
-        @keyframes sweepGlow {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-        }
-        @keyframes pulseGlow {
-            0%,100% { box-shadow: 0 0 15px rgba(0,164,230,0.3); }
-            50% { box-shadow: 0 0 30px var(--primary-blue), 0 0 45px rgba(201, 68, 255,0.4); }
-        }
-        @keyframes floatUp {
-            0%,100% { transform: translateY(0px); }
-            50% { transform: translateY(-6px); }
-        }
-        @keyframes textGlow {
-            0%, 100% {
-                text-shadow: 0 15px 25px rgba(0, 164, 230, 0.55);
-            }
-            50% {
-                text-shadow: 0 18px 35px rgba(0, 164, 230, 0.7);
-            }
-        }
-
-        .form-container {
-            position: relative;
-            z-index: 2;
-            width: 100%;
-            max-width: 520px;
-            background: var(--card-bg);
-            backdrop-filter: blur(14px);
-            border: 1px solid rgba(0,164,230,0.35);
-            border-radius: 22px;
-            padding: 45px 40px;
-            box-shadow: 0 20px 60px rgba(0,164,230,0.25);
-            animation: floatUp 6s infinite ease-in-out;
-            overflow: hidden;
-        }
-
-        .form-container::after {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(201, 68, 255,0.08), transparent);
-            animation: sweepGlow 5s infinite linear;
-            pointer-events: none;
-        }
-
-        .page-heading {
-            font-size: 2.4rem;
-            color: var(--primary-blue);
-            text-align: center;
-            margin-bottom: 35px;
-            animation: textGlow 4s infinite ease-in-out;
-            letter-spacing: 1px;
-            font-weight: 900;
-        }
-
-        form p {
-            margin-bottom: 22px;
-        }
-
-        form label {
-            display: block;
-            color: var(--text-gray);
-            font-size: 0.95rem;
-            margin-bottom: 8px;
-            font-weight: 500;
-        }
-
-        form input,
-        form select,
-        form textarea {
-            width: 100%;
-            padding: 14px 18px;
-            background: var(--input-bg);
-            border: 1px solid rgba(0,164,230,0.3);
-            border-radius: 10px;
-            color: var(--text-white);
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            outline: none;
-        }
-
-        form input:focus,
-        form select:focus,
-        form textarea:focus {
-            border-color: var(--primary-blue);
-            box-shadow: 0 0 20px rgba(0,164,230,0.35);
-        }
-
-        .btn-submit {
-            width: 100%;
-            padding: 16px;
-            margin-top: 12px;
-            background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple));
-            border: none;
-            border-radius: 10px;
-            color: #fff;
-            font-weight: 700;
-            font-size: 1.1rem;
-            cursor: pointer;
-            transition: all 0.35s ease;
-            position: relative;
-            overflow: hidden;
-            transform-style: preserve-3d;
-        }
-
-        .btn-submit::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
-            animation: sweepGlow 3.2s infinite linear;
-        }
-
-        .btn-submit:hover {
-            transform: translateY(-3px) scale(1.02) translate3d(0,0,12px);
-            animation: pulseGlow 1.8s infinite ease-in-out;
-            mix-blend-mode: screen;
-        }
-
-        .btn-submit:active {
-            transform: translateY(1px) scale(0.99);
-        }
-
-        .back-link {
-            display: inline-block;
-            width: 100%;
-            text-align: center;
-            margin-top: 20px;
-            color: var(--text-gray);
-            text-decoration: none;
-            font-size: 0.95rem;
-        }
-
-        .back-link:hover {
-            color: var(--primary-blue);
-            text-shadow: 0 0 15px rgba(0, 164, 230, 0.55);
-        }
-
-        .errorlist {
-            list-style: none;
-            padding: 8px 12px;
-            margin: 8px 0;
-            background: rgba(255,43,79,0.15);
-            border: 1px solid var(--accent-red);
-            border-radius: 8px;
-            color: var(--accent-red);
-            font-size: 0.9rem;
-        }
-    </style>
-</head>
-<body>
-    <canvas id="bg-canvas"></canvas>
-    <div class="grid-overlay"></div>
-
-    <div class="form-container">
-        <h1 class="page-heading">Add New Record</h1>
-
-        <form method="POST">
-            {% csrf_token %}
-
-            <p>
-                <label for="id_main_category">Main Category</label>
-                <select name="main_category" id="id_main_category" required>
-                    <option value="">-- Select Main Category --</option>
-                    {% for mc in form.fields.main_category.queryset %}
-                        <option value="{{ mc.id }}">{{ mc.name }}</option>
-                    {% endfor %}
-                </select>
-            </p>
-
-            <p>
-                <label for="id_subcategory">Sub Category (optional)</label>
-                <select name="subcategory" id="id_subcategory">
-                    <option value="">-- Select Main Category First --</option>
-                </select>
-            </p>
-
-            <p>
-                <label for="id_transaction_type">Transaction Type</label>
-                <select name="transaction_type" id="id_transaction_type" required>
-                    <option value="income">Income</option>
-                    <option value="expense">Expense</option>
-                </select>
-            </p>
-
-            <p>
-                <label for="id_amount">Amount</label>
-                <input type="number" name="amount" id="id_amount" step="0.01" min="0" required>
-            </p>
-
-            <p>
-                <label for="id_remarks">Remarks (optional)</label>
-                <textarea name="remarks" id="id_remarks" rows="3"></textarea>
-            </p>
-
-            <button class="btn-submit" type="submit">Save Record</button>
-        </form>
-
-        <a href="{% url 'records' %}" class="back-link">← Back to Records</a>
+{% block content %}
+<div class="card form-shell reveal">
+    <div class="section-head">
+        <div>
+            <h2>{% lang_text 'new_transaction' %}</h2>
+            <p>{% lang_text 'log_new_transaction' %}</p>
+        </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-    <script>
-        document.getElementById('id_main_category').addEventListener('change', function() {
-            const mainId = this.value;
-            const subSelect = document.getElementById('id_subcategory');
+    <form method="POST">
+        {% csrf_token %}
 
-            subSelect.innerHTML = '<option value="">-- Select Sub Category --</option>';
+        {% if form.errors %}
+        <ul class="errorlist">
+            {% for field, errors in form.errors.items %}{% for error in errors %}<li>{{ error }}</li>{% endfor %}{% endfor %}
+        </ul>
+        {% endif %}
 
-            if (mainId) {
-                fetch(`/records/get-subcategories/?main_id=${mainId}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.subcategories.length === 0) {
-                            subSelect.innerHTML = '<option value="">No subcategories available</option>';
-                        } else {
-                            data.subcategories.forEach(sub => {
-                                const option = document.createElement('option');
-                                option.value = sub.id;
-                                option.textContent = sub.name;
-                                subSelect.appendChild(option);
-                            });
-                        }
-                    });
-            }
-        });
+        <div class="field">
+            <span class="field-label">{% lang_text 'transaction_type' %}</span>
+            <div class="segmented">
+                <label><input type="radio" name="transaction_type" value="expense" {% if form.transaction_type.value != 'income' %}checked{% endif %}><span>↑ {% lang_text 'expense' %}</span></label>
+                <label><input type="radio" name="transaction_type" value="income" {% if form.transaction_type.value == 'income' %}checked{% endif %}><span>↓ {% lang_text 'income' %}</span></label>
+            </div>
+        </div>
 
-        const canvas = document.getElementById('bg-canvas');
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        <div class="field-row">
+            <div class="field">
+                <label for="id_amount">{% lang_text 'amount' %}</label>
+                <input type="number" step="0.01" min="0" name="amount" id="id_amount" value="{{ form.amount.value|default:'' }}" placeholder="0.00" required>
+            </div>
+            <div class="field">
+                <label for="id_date">{% lang_text 'date' %}</label>
+                <input type="date" name="date" id="id_date" value="{% if form.date.value %}{{ form.date.value|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" required>
+            </div>
+        </div>
 
-        camera.position.z = 6;
+        <div class="field">
+            <label for="id_main_category">{% lang_text 'category' %}</label>
+            <select name="main_category" id="id_main_category" required>
+                <option value="">{% lang_text 'select_category' %}</option>
+                {% for mc in form.fields.main_category.queryset %}
+                    <option value="{{ mc.id }}" {% if form.main_category.value|stringformat:'s' == mc.id|stringformat:'s' %}selected{% endif %}>{{ mc.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
 
-        const geo1 = new THREE.IcosahedronGeometry(1.3, 1);
-        const mat1 = new THREE.MeshBasicMaterial({color:0x00a4e6, wireframe:true, transparent:true, opacity:0.22});
-        const mesh1 = new THREE.Mesh(geo1, mat1);
-        scene.add(mesh1);
+        <div class="field">
+            <label for="id_subcategory">{% lang_text 'sub_category' %} <span class="dim">({% lang_text 'optional' %})</span></label>
+            <select name="subcategory" id="id_subcategory">
+                <option value="">{% lang_text 'select_category_first' %}</option>
+            </select>
+        </div>
 
-        const geo2 = new THREE.OctahedronGeometry(0.95, 0);
-        const mat2 = new THREE.MeshBasicMaterial({color:0xc944ff, wireframe:true, transparent:true, opacity:0.18});
-        const mesh2 = new THREE.Mesh(geo2, mat2);
-        mesh2.position.set(-3, -1.2, -2.5);
-        scene.add(mesh2);
+        <div class="field">
+            <label for="id_remarks">{% lang_text 'description' %} <span class="dim">({% lang_text 'optional' %})</span></label>
+            <input type="text" name="remarks" id="id_remarks" value="{{ form.remarks.value|default:'' }}" placeholder="{% lang_text 'description_placeholder' %}">
+        </div>
 
-        const count1 = 600;
-        const geoP1 = new THREE.BufferGeometry();
-        const pos1 = new Float32Array(count1 * 3);
-        for(let i=0; i<count1*3; i++) pos1[i] = (Math.random()-0.5)*22;
-        geoP1.setAttribute('position', new THREE.BufferAttribute(pos1,3));
-        const matP1 = new THREE.PointsMaterial({ color:0x00A4E6, size:0.12, transparent:true, opacity:0.6 });
-        const particleLayer1 = new THREE.Points(geoP1, matP1);
-        scene.add(particleLayer1);
+        <div class="field">
+            <label for="id_notes">{% lang_text 'notes' %} <span class="dim">({% lang_text 'optional' %})</span></label>
+            <textarea name="notes" id="id_notes" rows="3" placeholder="{% lang_text 'notes_placeholder' %}">{{ form.notes.value|default:'' }}</textarea>
+        </div>
 
-        const count2 = 1400;
-        const geoP2 = new THREE.BufferGeometry();
-        const pos2 = new Float32Array(count2 *3);
-        for(let i=0; i<count2*3; i++) pos2[i] = (Math.random()-0.5)*30;
-        geoP2.setAttribute('position', new THREE.BufferAttribute(pos2,3));
-        const matP2 = new THREE.PointsMaterial({ color:0xc944ff, size:0.04, transparent:true, opacity:0.4 });
-        const particleLayer2 = new THREE.Points(geoP2, matP2);
-        scene.add(particleLayer2);
+        <div class="form-footer">
+            <button type="submit" class="btn btn-primary">{% lang_text 'save_transaction' %}</button>
+            <a href="{% url 'records' %}" class="btn btn-ghost">{% lang_text 'cancel' %}</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
 
-        let mouseX = 0, mouseY = 0;
-        window.addEventListener('mousemove', (e)=>{
-            mouseX = (e.clientX / window.innerWidth - 0.5) * 0.35;
-            mouseY = -(e.clientY / window.innerHeight - 0.5) * 0.35;
-            gsap.to(camera.rotation, {x:mouseY, y:mouseX, duration:0.7, ease:"power2.out"});
-        });
+{% block extra_js %}
+<script>
+(function () {
+    const mainSelect = document.getElementById('id_main_category');
+    const subSelect = document.getElementById('id_subcategory');
+    const SUBS_URL = "{% url 'get_subcategories' %}";
+    const NO_SUBS = "{% lang_text 'no_subcategories_available' %}";
+    const SELECT_SUB = "{% lang_text 'select_sub_category' %}";
+    const SELECT_FIRST = "{% lang_text 'select_category_first' %}";
 
-        const card = document.querySelector('.form-container');
-        card.addEventListener('mousemove', (e)=>{
-            const rect = card.getBoundingClientRect();
-            const x = e.clientX - rect.left - rect.width/2;
-            const y = e.clientY - rect.top - rect.height/2;
-            gsap.to(card, {
-                rotateY: x * 0.02,
-                rotateX: -y * 0.02,
-                duration:0.2
+    function load(mainId) {
+        subSelect.innerHTML = '<option value="">' + (mainId ? SELECT_SUB : SELECT_FIRST) + '</option>';
+        if (!mainId) return;
+        fetch(SUBS_URL + '?main_id=' + encodeURIComponent(mainId))
+            .then((res) => res.json())
+            .then((data) => {
+                if (!data.subcategories.length) {
+                    subSelect.innerHTML = '<option value="">' + NO_SUBS + '</option>';
+                    return;
+                }
+                data.subcategories.forEach((sub) => {
+                    const option = document.createElement('option');
+                    option.value = sub.id;
+                    option.textContent = sub.name;
+                    subSelect.appendChild(option);
+                });
             })
-        })
-        card.addEventListener('mouseleave', ()=>{
-            gsap.to(card, {rotateX:0, rotateY:0, duration:0.4})
-        })
+            .catch(() => {});
+    }
 
-        function animate() {
-            requestAnimationFrame(animate);
-            mesh1.rotation.x += 0.003;
-            mesh1.rotation.y += 0.005;
-            mesh2.rotation.z += 0.004;
-            mesh1.position.y = Math.sin(Date.now() * 0.0008) * 0.7;
-            mesh2.position.x = Math.cos(Date.now() * 0.0006) * 0.6;
-            particleLayer1.rotation.y += 0.0009;
-            particleLayer2.rotation.x -= 0.0006;
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        })
-    </script>
-</body>
-</html>
+    mainSelect.addEventListener('change', () => load(mainSelect.value));
+    if (mainSelect.value) load(mainSelect.value);
+})();
+</script>
+{% endblock %}

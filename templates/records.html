@@ -1,314 +1,508 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>All Transaction Records | Bookkeeping System</title>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12/dist/gsap.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Roboto, monospace;
-        }
+{% extends 'base.html' %}
+{% load lang_tags %}
 
-        :root {
-            --primary-blue: #00A4E6;
-            --primary-purple: #c944ff;
-            --accent-red: #ff2b4f;
-            --dark-bg: #121420;
-            --card-bg: rgba(20, 22, 36, 0.65);
-            --input-bg: rgba(25, 28, 45, 0.7);
-            --text-white: #ffffff;
-            --text-gray: #b0c4de;
-        }
+{% block title %}{% lang_text "financial_records" %} | BookKeeper{% endblock %}
 
-        body {
-            overflow-x: hidden;
-            min-height: 100vh;
-            background: var(--dark-bg);
-            color: var(--text-white);
-            perspective: 1200px;
-            padding: 0;
-            margin: 0;
-        }
+{% block page_header %}
+<h1>{% lang_text "financial_records" %}</h1>
+<p>{% lang_text "records_subtitle" %}</p>
+{% endblock %}
 
-        #bg-canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: -3;
-            pointer-events: none;
-        }
+{% block extra_css %}
+<style>
+    /* ---- Records page specifics ---- */
+    .records-grid { display: flex; flex-direction: column; gap: 24px; }
+    .filter-search { grid-column: span 2; }
+    @media (max-width: 900px) { .filter-search { grid-column: span 1; } }
 
-        @keyframes sweepGlow {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-        }
-        @keyframes pulseGlow {
-            0%,100% { box-shadow: 0 0 8px rgba(0,164,230,0.2); }
-            50% { box-shadow: 0 0 16px var(--primary-blue); }
-        }
-        @keyframes floatUp {
-            0%,100% { transform: translateY(0px) rotate3d(0,0,0,0deg); }
-            50% { transform: translateY(-6px) rotate3d(0.2,0.15,0,1deg); }
-        }
-        @keyframes textGlow {
-            0%,100% { text-shadow: 0 10px 18px rgba(0,164,230,0.4); }
-            50% { text-shadow: 0 12px 22px rgba(0,164,230,0.55); }
-        }
+    .list-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 16px; flex-wrap: wrap; margin-bottom: 6px;
+    }
+    .result-count { font-size: 0.82rem; color: var(--text-dim); }
 
-        .main-nav {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            backdrop-filter: blur(14px);
-            background: rgba(20,22,36,0.6);
-            border-bottom: 1px solid rgba(0,164,230,0.3);
-            padding: 20px 40px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .page-title {
-            font-size: 3rem;
-            color: var(--primary-blue);
-            animation: textGlow 4s infinite ease-in-out;
-            letter-spacing: 2px;
-            font-weight: bold;
-        }
-        .nav-actions {
-            display: flex;
-            gap: 20px;
-            align-items: center;
-        }
+    .record-head {
+        display: grid;
+        grid-template-columns: 46px minmax(0, 1fr) 132px 140px 104px;
+        align-items: center;
+        gap: 16px;
+        padding: 0 10px 12px;
+        font-size: 0.71rem; font-weight: 800; letter-spacing: 0.7px;
+        text-transform: uppercase; color: var(--text-dim);
+        border-bottom: 1px solid var(--border);
+    }
+    .record-head .right { text-align: right; }
 
-        /* Shared style for BOTH buttons */
-        .cyber-btn {
-            position: relative;
-            display: inline-block;
-            padding: 15px 30px;
-            color: #fff;
-            text-decoration: none;
-            font-weight: 700;
-            font-size: 1.05rem;
-            border-radius: 10px;
-            border: none;
-            overflow: hidden;
-            transition: all 0.35s ease;
-            cursor: pointer;
-            transform-style: preserve-3d;
-        }
-        /* Both buttons use identical blue-purple gradient */
-        .btn-primary, .btn-green {
-            background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple));
-        }
-        /* Shimmer sweep light (works on both buttons) */
-        .cyber-btn::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
-            animation: sweepGlow 3.2s infinite linear;
-        }
-        /* Hover 3D lift for EVERY button */
-        .cyber-btn:hover {
-            transform: translateY(-4px) scale(1.03) translate3d(0,0,12px);
-            animation: pulseGlow 1.8s infinite ease-in-out;
-            mix-blend-mode: screen;
-        }
-        .cyber-btn:active {
-            transform: translateY(1px) scale(0.98);
-        }
+    .record-row {
+        grid-template-columns: 46px minmax(0, 1fr) 132px 140px 104px;
+        animation: pageIn 0.4s ease both;
+    }
+    .record-sub .dot-sep { color: var(--text-dim); padding: 0 2px; }
 
-        .dashboard-wrapper {
-            position: relative;
-            z-index: 1;
-            max-width: 1250px;
-            margin: 20px auto 0 auto;
-            padding: 0 30px;
+    @media (max-width: 1040px) {
+        .record-head { display: none; }
+        .record-row {
+            grid-template-columns: 46px minmax(0, 1fr) 150px;
+            grid-template-areas: "icon main amount" "icon type actions";
+            row-gap: 10px;
+            padding: 16px 10px;
         }
+        .record-row .record-icon { grid-area: icon; align-self: start; }
+        .record-row .record-main { grid-area: main; }
+        .record-row .record-type { grid-area: type; justify-self: start; }
+        .record-row .record-amount { grid-area: amount; }
+        .record-row .record-actions { grid-area: actions; justify-content: flex-end; }
+    }
+    @media (max-width: 560px) {
+        .record-row {
+            grid-template-columns: 42px minmax(0, 1fr);
+            grid-template-areas: "icon main" "type type" "amount amount" "actions actions";
+        }
+        .record-row .record-amount { text-align: left; }
+        .record-row .record-actions { justify-content: flex-start; }
+    }
 
-        .records-panel {
-            background: var(--card-bg);
-            backdrop-filter: blur(14px);
-            border: 1px solid rgba(0,164,230,0.35);
-            border-radius: 18px;
-            padding: 40px;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,164,230,0.15);
-            animation: floatUp 6s infinite ease-in-out;
-            transform-style: preserve-3d;
-        }
-        .records-panel::after {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(201, 68, 255,0.08), transparent);
-            animation: sweepGlow 5s infinite linear;
-            pointer-events: none;
-        }
-        .records-panel h3 {
-            font-size: 2.2rem;
-            color: var(--primary-blue);
-            margin-bottom: 30px;
-            animation: textGlow 5s infinite ease-in-out;
-        }
+    .modal .segmented { width: 100%; }
+    .modal .segmented label { flex: 1; }
+    .modal .segmented span { width: 100%; justify-content: center; }
+</style>
+{% endblock %}
 
-        .transaction-list {
-            list-style: none;
-        }
-        .transaction-item {
-            padding: 18px 22px;
-            margin: 14px 0;
-            background: var(--input-bg);
-            border-left: 5px solid transparent;
-            border-radius: 10px;
-            font-size: 1.1rem;
-            transition: all 0.3s ease;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .transaction-item:hover {
-            transform: translateX(8px);
-            box-shadow: 0 0 12px rgba(0,164,230,0.18);
-        }
-        .income-row { border-left-color: var(--primary-blue); }
-        .expense-row { border-left-color: var(--accent-red); }
+{% block content %}
+{% lang_text 'uncategorized' as unc %}
+<div class="records-grid">
 
-        .amount-income{
-            color: var(--primary-blue);
-        }
-        .amount-expense{
-            color: var(--accent-red);
-        }
-
-        .empty-record {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--text-gray);
-            font-size: 1.2rem;
-        }
-    </style>
-</head>
-<body>
-    <canvas id="bg-canvas"></canvas>
-
-    <nav class="main-nav">
-        <h1 class="page-title">ALL TRANSACTION RECORDS</h1>
-        <div class="nav-actions">
-            <a href="{% url 'dashboard' %}" class="cyber-btn btn-green">← Dashboard</a>
-            <a href="{% url 'add_record' %}" class="cyber-btn btn-primary">+ Add New Record</a>
+    <!-- Summary stats -->
+    <div class="stat-grid">
+        <div class="stat-card reveal">
+            <div class="stat-head">
+                <span class="stat-label">{% lang_text 'total_income' %}</span>
+                <span class="stat-icon">↓</span>
+            </div>
+            <div class="stat-value income" data-countup="{{ income|floatformat:'2u' }}" data-prefix="{{ currency_symbol }}">{{ currency_symbol }}0.00</div>
+            <div class="stat-foot">{% lang_text 'all_time_income' %}</div>
         </div>
-    </nav>
 
-    <div class="dashboard-wrapper">
-        <div class="records-panel">
-            <h3>Recent Transaction Records</h3>
-            <ul class="transaction-list">
-                {% for r in records %}
-                <li class="transaction-item {% if r.transaction_type == 'income' %}income-row{% else %}expense-row{% endif %}">
-                    <span>{{ r.transaction_type }}</span>
-                    <span class="{% if r.transaction_type == 'income' %}amount-income{% else %}amount-expense{% endif %}">
-                        {% if r.transaction_type == 'income' %}+{% else %}-{% endif %} {{ r.amount }}
-                    </span>
-                    <span>Remarks: {{ r.remarks }}</span>
-                </li>
-                {% empty %}
-                    <li class="transaction-item empty-record">No transaction records created yet.</li>
-                {% endfor %}
-            </ul>
+        <div class="stat-card reveal" data-delay="60">
+            <div class="stat-head">
+                <span class="stat-label">{% lang_text 'total_expense' %}</span>
+                <span class="stat-icon danger">↑</span>
+            </div>
+            <div class="stat-value expense" data-countup="{{ expense|floatformat:'2u' }}" data-prefix="{{ currency_symbol }}">{{ currency_symbol }}0.00</div>
+            <div class="stat-foot">{% lang_text 'all_time_expense' %}</div>
+        </div>
+
+        <div class="stat-card reveal" data-delay="120">
+            <div class="stat-head">
+                <span class="stat-label">{% lang_text 'net_balance' %}</span>
+                <span class="stat-icon">◈</span>
+            </div>
+            <div class="stat-value" data-countup="{{ balance|floatformat:'2u' }}" data-prefix="{{ currency_symbol }}">{{ currency_symbol }}0.00</div>
+            <div class="stat-foot">{% lang_text 'net_of_all' %}</div>
+        </div>
+
+        <div class="stat-card reveal" data-delay="180">
+            <div class="stat-head">
+                <span class="stat-label">{% lang_text 'transactions' %}</span>
+                <span class="stat-icon">≡</span>
+            </div>
+            <div class="stat-value" data-countup="{{ total_count|default:0 }}" data-decimals="0">{{ total_count|default:0 }}</div>
+            <div class="stat-foot">
+                {% if has_filters %}{% lang_text 'filters_active' %}{% else %}{% lang_text 'all_time' %}{% endif %}
+            </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-    <script>
-        const canvas = document.getElementById('bg-canvas');
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias:true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    <!-- Filters -->
+    <div class="card reveal">
+        <div class="section-head">
+            <div>
+                <h2>{% lang_text 'filter_records' %}</h2>
+                <p>{% lang_text 'filter_view_manage' %}</p>
+            </div>
+            <div class="section-actions">
+                <button type="button" class="btn btn-primary" data-modal-open="addRecordModal">
+                    <span>+</span> {% lang_text 'add_record' %}
+                </button>
+            </div>
+        </div>
 
-        camera.position.z = 6;
+        <form method="GET" action="{% url 'records' %}" class="filter-bar">
+            <div class="field filter-search" style="margin-bottom:0;">
+                <div class="search-input">
+                    <span class="search-icon">⌕</span>
+                    <input type="search" name="q" value="{{ filters.q }}" placeholder="{% lang_text 'search_transactions' %}" aria-label="{% lang_text 'search' %}">
+                </div>
+            </div>
 
-        const geo1 = new THREE.IcosahedronGeometry(1.3, 1);
-        const mat1 = new THREE.MeshBasicMaterial({color:0x00a4e6, wireframe:true, transparent:true, opacity:0.22});
-        const mesh1 = new THREE.Mesh(geo1, mat1);
-        scene.add(mesh1);
+            <div class="field" style="margin-bottom:0;">
+                <label for="filter-type">{% lang_text 'type' %}</label>
+                <select name="type" id="filter-type">
+                    <option value="">{% lang_text 'all_types' %}</option>
+                    <option value="income" {% if filters.type == 'income' %}selected{% endif %}>{% lang_text 'income' %}</option>
+                    <option value="expense" {% if filters.type == 'expense' %}selected{% endif %}>{% lang_text 'expense' %}</option>
+                </select>
+            </div>
 
-        const geo2 = new THREE.OctahedronGeometry(0.95, 0);
-        const mat2 = new THREE.MeshBasicMaterial({color:0xc944ff, wireframe:true, transparent:true, opacity:0.18});
-        const mesh2 = new THREE.Mesh(geo2, mat2);
-        mesh2.position.set(-3, -1.2, -2.5);
-        scene.add(mesh2);
+            <div class="field" style="margin-bottom:0;">
+                <label for="filter-category">{% lang_text 'category' %}</label>
+                <select name="category" id="filter-category">
+                    <option value="">{% lang_text 'all_categories' %}</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat.id }}" {% if filters.category == cat.id|stringformat:'s' %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-        const particleCount = 900;
-        const posArray = new Float32Array(particleCount * 3);
-        for(let i = 0; i < particleCount * 3; i++) {
-            posArray[i] = (Math.random() - 0.5) * 18;
-        }
-        const particlesGeo = new THREE.BufferGeometry();
-        particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-        const particleMat = new THREE.PointsMaterial({
-            color: 0x00A4E6,
-            size: 0.09,
-            transparent:true,
-            opacity:0.6
-        });
-        const particleCloud = new THREE.Points(particlesGeo, particleMat);
-        scene.add(particleCloud);
+            <div class="field" style="margin-bottom:0;">
+                <label for="filter-sort">{% lang_text 'sort_by' %}</label>
+                <select name="sort" id="filter-sort">
+                    <option value="newest" {% if filters.sort == 'newest' %}selected{% endif %}>{% lang_text 'sort_newest' %}</option>
+                    <option value="oldest" {% if filters.sort == 'oldest' %}selected{% endif %}>{% lang_text 'sort_oldest' %}</option>
+                    <option value="amount_high" {% if filters.sort == 'amount_high' %}selected{% endif %}>{% lang_text 'sort_amount_high' %}</option>
+                    <option value="amount_low" {% if filters.sort == 'amount_low' %}selected{% endif %}>{% lang_text 'sort_amount_low' %}</option>
+                </select>
+            </div>
 
-        let mouseX = 0, mouseY = 0;
-        window.addEventListener('mousemove', (e)=>{
-            mouseX = (e.clientX / window.innerWidth - 0.5) * 0.4;
-            mouseY = -(e.clientY / window.innerHeight - 0.5) * 0.4;
-            gsap.to(camera.rotation, {x:mouseY, y:mouseX, duration:0.7, ease:"power2.out"});
-        });
+            <div class="field" style="margin-bottom:0;">
+                <label for="filter-start">{% lang_text 'date_from' %}</label>
+                <input type="date" name="start_date" id="filter-start" value="{{ filters.start_date }}">
+            </div>
 
-        const panel = document.querySelector('.records-panel');
-        panel.addEventListener('mousemove', (e)=>{
-            const rect = panel.getBoundingClientRect();
-            const x = e.clientX - rect.left - rect.width/2;
-            const y = e.clientY - rect.top - rect.height/2;
-            gsap.to(panel, {
-                rotateY: x * 0.02,
-                rotateX: -y * 0.02,
-                duration:0.2
+            <div class="field" style="margin-bottom:0;">
+                <label for="filter-end">{% lang_text 'date_to' %}</label>
+                <input type="date" name="end_date" id="filter-end" value="{{ filters.end_date }}">
+            </div>
+
+            <div class="filter-actions" style="grid-column: 1 / -1;">
+                <button type="submit" class="btn btn-primary">{% lang_text 'apply' %}</button>
+                <a href="{% url 'records' %}" class="btn btn-ghost">{% lang_text 'reset_filters' %}</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Transactions -->
+    <div class="card reveal">
+        <div class="list-head">
+            <div class="section-head" style="margin-bottom:0;">
+                <div>
+                    <h2>{% lang_text 'transactions' %}</h2>
+                    <p class="result-count">
+                        {% if total_count %}{% lang_text 'showing_results' count=total_count %}{% else %}{% lang_text 'no_results' %}{% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        {% if records %}
+            <div class="record-head">
+                <span></span>
+                <span>{% lang_text 'transaction' %}</span>
+                <span>{% lang_text 'type' %}</span>
+                <span class="right">{% lang_text 'amount' %}</span>
+                <span class="right">{% lang_text 'actions' %}</span>
+            </div>
+
+            <div class="record-list">
+                {% for r in records %}
+                <div class="record-row">
+                    <div class="record-icon {% if r.transaction_type == 'income' %}income{% else %}expense{% endif %}">
+                        {% if r.transaction_type == 'income' %}↓{% else %}↑{% endif %}
+                    </div>
+
+                    <div class="record-main">
+                        <div class="record-title">{% if r.remarks %}{{ r.remarks }}{% else %}{{ r.main_category.name|default:unc }}{% endif %}</div>
+                        <div class="record-sub">
+                            {{ r.date|date:"M d, Y" }}
+                            <span class="dot-sep">·</span>
+                            {{ r.main_category.name|default:unc }}{% if r.subcategory %} / {{ r.subcategory.name }}{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="record-type">
+                        <span class="pill {% if r.transaction_type == 'income' %}income{% else %}expense{% endif %}">
+                            {% if r.transaction_type == 'income' %}{% lang_text 'income' %}{% else %}{% lang_text 'expense' %}{% endif %}
+                        </span>
+                    </div>
+
+                    <div class="record-amount {% if r.transaction_type == 'income' %}text-income{% else %}text-expense{% endif %}">
+                        {% if r.transaction_type == 'income' %}+{% else %}−{% endif %}{{ currency_symbol }}{{ r.amount|floatformat:2 }}
+                    </div>
+
+                    <div class="record-actions">
+                        <button type="button" class="icon-btn" title="{% lang_text 'edit' %}"
+                                data-modal-open="editRecordModal"
+                                data-edit-url="{% url 'edit_record' r.id %}"
+                                data-record-date="{{ r.date|date:'Y-m-d' }}"
+                                data-record-type="{{ r.transaction_type }}"
+                                data-record-amount="{{ r.amount|floatformat:'2u' }}"
+                                data-record-desc="{{ r.remarks|escape }}"
+                                data-record-notes="{{ r.notes|escape }}"
+                                data-record-category="{{ r.main_category_id|default:'' }}"
+                                data-record-sub="{{ r.subcategory_id|default:'' }}">✎</button>
+                        <button type="button" class="icon-btn danger" title="{% lang_text 'delete' %}"
+                                data-modal-open="deleteRecordModal"
+                                data-delete-url="{% url 'delete_record' r.id %}"
+                                data-record-label="{% if r.remarks %}{{ r.remarks|escape }}{% else %}{{ r.main_category.name|default:unc|escape }}{% endif %}"
+                                data-record-value="{{ currency_symbol }}{{ r.amount|floatformat:2 }}">✕</button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% elif has_filters %}
+            <div class="empty-state">
+                <div class="empty-visual">⌕</div>
+                <div class="empty-title">{% lang_text 'filters_empty_title' %}</div>
+                <div class="empty-text">{% lang_text 'filters_empty_text' %}</div>
+                <div class="empty-actions">
+                    <a href="{% url 'records' %}" class="btn btn-primary">{% lang_text 'clear_filters' %}</a>
+                </div>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-visual">◈</div>
+                <div class="empty-title">{% lang_text 'records_empty_title' %}</div>
+                <div class="empty-text">{% lang_text 'records_empty_text' %}</div>
+                <div class="empty-actions">
+                    <button type="button" class="btn btn-primary btn-lg" data-modal-open="addRecordModal">
+                        + {% lang_text 'add_first_record' %}
+                    </button>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ============ Add transaction modal ============ -->
+<div class="modal-backdrop" id="addRecordModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addRecordTitle">
+        <form method="post" action="{% url 'add_record' %}">
+            {% csrf_token %}
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="addRecordTitle">{% lang_text 'new_transaction' %}</div>
+                    <div class="modal-sub">{% lang_text 'log_new_transaction' %}</div>
+                </div>
+                <button type="button" class="modal-close" data-modal-close aria-label="{% lang_text 'close' %}">✕</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="field">
+                    <span class="field-label">{% lang_text 'transaction_type' %}</span>
+                    <div class="segmented">
+                        <label><input type="radio" name="transaction_type" value="expense" checked><span>↑ {% lang_text 'expense' %}</span></label>
+                        <label><input type="radio" name="transaction_type" value="income"><span>↓ {% lang_text 'income' %}</span></label>
+                    </div>
+                </div>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label for="add-amount">{% lang_text 'amount' %}</label>
+                        <input type="number" step="0.01" min="0" name="amount" id="add-amount" placeholder="0.00" required data-autofocus>
+                    </div>
+                    <div class="field">
+                        <label for="add-date">{% lang_text 'date' %}</label>
+                        <input type="date" name="date" id="add-date" value="{% now 'Y-m-d' %}" required>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="add-category">{% lang_text 'category' %}</label>
+                    <select name="main_category" id="add-category" required>
+                        <option value="">{% lang_text 'select_category' %}</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.id }}">{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="add-subcategory">{% lang_text 'sub_category' %} <span class="dim">({% lang_text 'optional' %})</span></label>
+                    <select name="subcategory" id="add-subcategory">
+                        <option value="">{% lang_text 'select_category_first' %}</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="add-desc">{% lang_text 'description' %}</label>
+                    <input type="text" name="remarks" id="add-desc" placeholder="{% lang_text 'description_placeholder' %}">
+                </div>
+
+                <div class="field">
+                    <label for="add-notes">{% lang_text 'notes' %} <span class="dim">({% lang_text 'optional' %})</span></label>
+                    <textarea name="notes" id="add-notes" rows="3" placeholder="{% lang_text 'notes_placeholder' %}"></textarea>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-modal-close>{% lang_text 'cancel' %}</button>
+                <button type="submit" class="btn btn-primary">{% lang_text 'save_transaction' %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============ Edit transaction modal ============ -->
+<div class="modal-backdrop" id="editRecordModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editRecordTitle">
+        <form method="post" action="" id="editRecordForm">
+            {% csrf_token %}
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="editRecordTitle">{% lang_text 'edit_transaction' %}</div>
+                    <div class="modal-sub">{% lang_text 'update_transaction_details' %}</div>
+                </div>
+                <button type="button" class="modal-close" data-modal-close aria-label="{% lang_text 'close' %}">✕</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="field">
+                    <span class="field-label">{% lang_text 'transaction_type' %}</span>
+                    <div class="segmented">
+                        <label><input type="radio" name="transaction_type" value="expense"><span>↑ {% lang_text 'expense' %}</span></label>
+                        <label><input type="radio" name="transaction_type" value="income"><span>↓ {% lang_text 'income' %}</span></label>
+                    </div>
+                </div>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label for="edit-amount">{% lang_text 'amount' %}</label>
+                        <input type="number" step="0.01" min="0" name="amount" id="edit-amount" required data-autofocus>
+                    </div>
+                    <div class="field">
+                        <label for="edit-date">{% lang_text 'date' %}</label>
+                        <input type="date" name="date" id="edit-date" required>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="edit-category">{% lang_text 'category' %}</label>
+                    <select name="main_category" id="edit-category" required>
+                        <option value="">{% lang_text 'select_category' %}</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.id }}">{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="edit-subcategory">{% lang_text 'sub_category' %} <span class="dim">({% lang_text 'optional' %})</span></label>
+                    <select name="subcategory" id="edit-subcategory">
+                        <option value="">{% lang_text 'select_category_first' %}</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="edit-desc">{% lang_text 'description' %}</label>
+                    <input type="text" name="remarks" id="edit-desc">
+                </div>
+
+                <div class="field">
+                    <label for="edit-notes">{% lang_text 'notes' %} <span class="dim">({% lang_text 'optional' %})</span></label>
+                    <textarea name="notes" id="edit-notes" rows="3"></textarea>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-modal-close>{% lang_text 'cancel' %}</button>
+                <button type="submit" class="btn btn-primary">{% lang_text 'save_changes' %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============ Delete confirm modal ============ -->
+<div class="modal-backdrop" id="deleteRecordModal">
+    <div class="modal modal-sm" role="dialog" aria-modal="true">
+        <form method="post" action="" id="deleteRecordForm">
+            {% csrf_token %}
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">{% lang_text 'confirm_delete_record' %}</div>
+                    <div class="modal-sub">{% lang_text 'cannot_be_undone' %}</div>
+                </div>
+                <button type="button" class="modal-close" data-modal-close aria-label="{% lang_text 'close' %}">✕</button>
+            </div>
+            <div class="modal-body">
+                <p class="muted" style="line-height:1.6;">
+                    <strong id="deleteRecordLabel" style="color:var(--text);"></strong>
+                    <span id="deleteRecordValue" class="mono" style="color:var(--danger); font-weight:800;"></span>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-modal-close>{% lang_text 'cancel' %}</button>
+                <button type="submit" class="btn btn-danger">{% lang_text 'yes_delete' %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const SUBS_URL = "{% url 'get_subcategories' %}";
+    const NO_SUBS = "{% lang_text 'no_subcategories_available' %}";
+    const SELECT_FIRST = "{% lang_text 'select_category_first' %}";
+    const SELECT_SUB = "{% lang_text 'select_sub_category' %}";
+
+    function loadSubcategories(mainSelect, subSelect, selectedId) {
+        const mainId = mainSelect.value;
+        subSelect.innerHTML = '<option value="">' + (mainId ? SELECT_SUB : SELECT_FIRST) + '</option>';
+        if (!mainId) return;
+        fetch(SUBS_URL + '?main_id=' + encodeURIComponent(mainId))
+            .then((res) => res.json())
+            .then((data) => {
+                if (!data.subcategories.length) {
+                    subSelect.innerHTML = '<option value="">' + NO_SUBS + '</option>';
+                    return;
+                }
+                data.subcategories.forEach((sub) => {
+                    const option = document.createElement('option');
+                    option.value = sub.id;
+                    option.textContent = sub.name;
+                    if (String(sub.id) === String(selectedId)) option.selected = true;
+                    subSelect.appendChild(option);
+                });
             })
-        });
-        panel.addEventListener('mouseleave', ()=>{
-            gsap.to(panel, {rotateX:0, rotateY:0, duration:0.4})
+            .catch(() => {});
+    }
+
+    const addMain = document.getElementById('add-category');
+    const addSub = document.getElementById('add-subcategory');
+    addMain.addEventListener('change', () => loadSubcategories(addMain, addSub, ''));
+
+    const editMain = document.getElementById('edit-category');
+    const editSub = document.getElementById('edit-subcategory');
+    const editForm = document.getElementById('editRecordForm');
+    editMain.addEventListener('change', () => loadSubcategories(editMain, editSub, ''));
+
+    document.addEventListener('click', (event) => {
+        const btn = event.target.closest('[data-edit-url]');
+        if (!btn) return;
+
+        editForm.action = btn.getAttribute('data-edit-url');
+        document.getElementById('edit-amount').value = btn.getAttribute('data-record-amount');
+        document.getElementById('edit-date').value = btn.getAttribute('data-record-date');
+        document.getElementById('edit-desc').value = btn.getAttribute('data-record-desc') || '';
+        document.getElementById('edit-notes').value = btn.getAttribute('data-record-notes') || '';
+
+        const type = btn.getAttribute('data-record-type');
+        editForm.querySelectorAll('input[name="transaction_type"]').forEach((input) => {
+            input.checked = input.value === type;
         });
 
-        function animate() {
-            requestAnimationFrame(animate);
-            mesh1.rotation.x += 0.003;
-            mesh1.rotation.y += 0.005;
-            mesh2.rotation.z += 0.004;
-            mesh1.position.y = Math.sin(Date.now() * 0.0008) * 0.7;
-            mesh2.position.x = Math.cos(Date.now() * 0.0006) * 0.6;
-            particleCloud.rotation.y += 0.0009;
-            renderer.render(scene, camera);
-        }
-        animate();
+        editMain.value = btn.getAttribute('data-record-category') || '';
+        loadSubcategories(editMain, editSub, btn.getAttribute('data-record-sub') || '');
+    });
 
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        })
-    </script>
-</body>
-</html>
+    document.addEventListener('click', (event) => {
+        const btn = event.target.closest('[data-delete-url]');
+        if (!btn) return;
+        document.getElementById('deleteRecordForm').action = btn.getAttribute('data-delete-url');
+        document.getElementById('deleteRecordLabel').textContent = btn.getAttribute('data-record-label') || '';
+        document.getElementById('deleteRecordValue').textContent = ' · ' + (btn.getAttribute('data-record-value') || '');
+    });
+})();
+</script>
+{% endblock %}
