@@ -22,17 +22,27 @@ SECRET_KEY = os.environ.get(
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = [
-host.strip()
-for host in os.environ.get(
-'ALLOWED_HOSTS',
-'localhost,127.0.0.1,bookkeeping-system-production.up.railway.app'
-).split(',')
-if host.strip()
+'localhost',
+'127.0.0.1',
+'bookkeeping-system-production.up.railway.app',
 ]
+
+railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '').strip()
+if railway_domain:
+ALLOWED_HOSTS.append(railway_domain)
+
+extra_hosts = os.environ.get('ALLOWED_HOSTS', '').strip()
+if extra_hosts:
+ALLOWED_HOSTS.extend(
+host.strip() for host in extra_hosts.split(',') if host.strip()
+)
 
 CSRF_TRUSTED_ORIGINS = [
 'https://bookkeeping-system-production.up.railway.app',
 ]
+
+if railway_domain:
+CSRF_TRUSTED_ORIGINS.append(f'https://{railway_domain}')
 
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
